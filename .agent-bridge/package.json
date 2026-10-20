@@ -1,0 +1,12 @@
+{
+  "name": "tsugidoko-agent-bridge",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test bridge.test.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "ws": "^8.21.3"
+  }
+}

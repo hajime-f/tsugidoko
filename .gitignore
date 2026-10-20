@@ -1,0 +1,29 @@
+# Local dependencies and build output
+node_modules/
+.next/
+out/
+coverage/
+playwright-report/
+test-results/
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*-firebase-adminsdk-*.json
+service-account*.json
+serviceAccount*.json
+.claude/settings.local.json
+
+# Agent communication state and logs
+.agent-bridge/runtime/
+
+# Firebase local output
+.firebase/
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*
+
+# macOS
+.DS_Store
