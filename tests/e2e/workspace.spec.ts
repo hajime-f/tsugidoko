@@ -215,13 +215,3 @@ test('求人URL: 候補を確認・修正して保存、取得不可なら手入
   await page.getByRole('button',{name:'登録する',exact:true}).click();
   await expect(page.getByRole('button',{name:'手入力した会社',exact:true})).toBeVisible();
 });
-
-test('メール通知: 既定OFF、オンを保存して再読み込み、オフへ戻す',async({page},info)=>{
-  await signIn(page,`notify-${info.project.name}-${Date.now()}@example.test`);
-  const toggle=page.getByRole('checkbox',{name:'期限のリマインダーをメールで受け取る'});
-  await expect(toggle).toBeEnabled();await expect(toggle).not.toBeChecked();
-  await toggle.click();await expect(page.getByRole('status').filter({hasText:'メール通知をオンにしました'})).toBeVisible();
-  await page.reload();await expect(toggle).toBeChecked();
-  await toggle.click();await expect(page.getByRole('status').filter({hasText:'メール通知をオフにしました'})).toBeVisible();
-  await page.reload();await expect(toggle).not.toBeChecked();
-});

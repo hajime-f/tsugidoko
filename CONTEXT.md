@@ -399,7 +399,7 @@ Claude からは一括登録を必須とする提案があったが、相談の�
 
 ## アーカイブ・求人URL登録・期限メール（2026年10月25日）
 
-この節は実装時点の記録です。アーカイブと選考状態の現行仕様は、末尾の「選考の状態とハイライト」を優先してください。
+この節は実装時点の記録です。アーカイブと選考状況は後続の現行仕様を参照。メール通知は後続の「メール通知の取り下げ」により撤去対象となり、SMTP設定待ちではありません。
 
 藤田さんから3機能の実装依頼。ただし削除ではなくアーカイブを指定されたため、永久削除は実装していない。
 
@@ -464,3 +464,30 @@ Claude からは一括登録を必須とする提案があったが、相談の�
 - 本番実行アカウントは firebase-app-hosting-compute。sdkAdminServiceAgent等の付与を読み取り確認。Cloud Runのtimeoutは300秒。
 - SMTP未設定・Scheduler未作成。メール通知は無効のまま。資格情報提供後に有効化する。
 - 今回藤田さんがルートディレクトリに置いたキーチェーン確認画面のスクリーンショットはGitへ追加しない。作業中に追加されたユーザーファイルとして保持。
+
+## Firebase Web APIキーの対策（2026年10月25日・23:30 JST）
+
+藤田さんから、GitHubのsecret scanning通知を受けて「危険なので対応してください」と依頼。以下を完了。
+
+- GitHub alert #1の旧キー（ID `0bbb0c5c-c41b-45c6-a4d3-22826cbb9b8d`）を削除・失効。本番を新キーへ切り替え、Google画面への遷移を確認した後に実施。直近7日間の使用履歴による保護は、切替確認後に `--no-check-existing-usage` で上書きした。旧キーでのAPI呼び出しはHTTP400 `API_KEY_INVALID` / expiredとなり、失効を実測確認。
+- GitHubの警告 https://github.com/hajime-f/tsugidoko/security/secret-scanning/1 は `resolved / revoked`。過去のGit履歴に旧値は残るが無効。履歴書き換えは行っていない。
+- 新しい本番キー（ID `ed152c5b-37b0-4311-aa59-e9bd21374828`）と開発キー（ID `5069f022-5857-4bba-88d0-2018b9ac9533`）を分離。許可APIはIdentity Toolkit、Token Service、Cloud Firestore、Cloud Datastore、Firebase Rulesのみ。本番リファラーはhosted.appの本番URL・Cloud Runの通常URL・Firebase authDomainの3つ。開発はlocalhost/127.0.0.1:3100とauthDomain。全て末尾 `/*`。旧キー削除後、有効キー一覧はこの2つだけで、想定外の自動生成キーはない。
+- client.tsは `NEXT_PUBLIC_FIREBASE_API_KEY` を参照。本番はSecret Manager `tsugidoko-firebase-web-api-key@1` のBUILD限定参照とbackend grantaccess、開発はGit除外 `.env.local`。実キー不要のEmulator経路は維持。next.config.tsで本番ビルド時のキー未設定を拒否。
+- Webキーはブラウザには配信される。Secret Manager/環境変数はGit直書きを避けるためであり、秘密化ではない。リファラーは偽装できるため、本人認証とFirestore Rulesを引き続き必須とする。App Checkは未導入で、将来の乱用対策候補。
+- Firebase WebAppの `apiKeyId` 関連付けは、新キーへのPATCHが400 INVALID_ARGUMENTとなり未変更。同じ旧キーIDへのPATCHは成功し、新キーの制限との関連が疑われるが原因は断定しない。制限を緩めることはせず、実アプリの明示設定を正とする。Consoleや `firebase apps:sdkconfig` のキーを再転記しないこと。認証ハンドラーにはアプリから新キーが渡される。
+- 本番デプロイ済み。Cloud Build `94d8db61-6528-4dc2-88b0-54b11cbaa383` 成功、Cloud Run `tsugidoko-build-2026-10-25-002` Ready、トラフィック100%。本番配信JSのキーが本番用と一致し、開発用が含まれないことを値非表示で検証。
+- 検証: 認証E2E3件、Rules7件、本番build成功。未設定buildは意図どおり停止。新キー2つとも許可リファラーの認証設定取得200、外部/リファラーなし403、Token APIの不正トークン400、匿名Firestore読み取り403。開発・本番ともChromeでGoogleログイン画面まで遷移。旧キー失効後も本番の遷移を再確認。実Googleアカウントでの認証完了・保存操作は行っていない。
+- Claude Codeの設計・実装レビュー完了。未設定buildの拒否と本番バンドルのキー照合を反映し、管理APIの制約も相談済み。
+- 古い画面は再読み込みが必要。キー変更により保存済みの認証状態が引き継がれない場合があるため、必要に応じて再ログインする。
+- この依頼にはcommit/pushの明示がなかったため、変更は未コミット。本番はローカル修正をdeployした状態で、GitHub mainとは差分がある。次回commit/pushの依頼時に README.md、CONTEXT.md、apphosting.yaml、next.config.ts、src/lib/firebase/client.ts を含める。古いmainをそのままdeployすると無効な旧キーが戻るため、再デプロイにはこの修正が必須。
+
+## メール通知の取り下げ（2026年10月25日・現行方針）
+
+藤田さんから「メール通知の機能はいったん取り下げます」と指示。以前の期限メールに関する実装・有効化予定より、この方針を優先する。再開は新たな依頼があったときに検討し、SMTPの回答待ちや有効化待ちとして扱わない。
+
+- ホームのメール通知設定、通知設定API、内部の定期配信API、SMTP配信処理、Scheduler作成スクリプト、通知専用CSS・依存パッケージを撤去。
+- 通知用Rulesの読み取り許可とsettings.enabledの索引定義を撤去。旧通知データは既定でクライアントから読み書き不可となる。応募先・次の行動・期限・比較・求人URL登録は維持。既存データを削除する処理は実施しない。
+- 通知用テストとSMTPのテスト設定を整理し、求人URL取得・認証・SSRF・回数制限の試験は維持。README/AGENTSからSMTP設定待ち・配信有効化手順を除去。
+- 本番メール配信はもともとSMTP未設定・Scheduler未作成で無効。今回の撤去コードは未デプロイ、未コミット・未push。次回反映時に画面/APIとFirestore Rules/indexesも併せて更新する。
+- 次回デプロイまで、本番には通知画面、`/api/notifications`、`/api/internal/reminders` と通知データの本人読み取り許可が残る。配信は無効。索引デプロイで削除確認が出る場合は対象が不要になった `settings.enabled` のcollection group索引であることを確認する。一括でほかの索引を削除しない。
+- 撤去後の検証完了: サーバー6件、Rules7件、PCの応募管理/行動/比較/旧データ/求人URL E2E5件が成功。本番ビルド成功（初回は開発サーバーが生成した古い通知APIの型参照が残って失敗。該当生成ファイルだけ除去し再実行で成功）。開発サーバーで通知APIのGETと内部配信APIのPOSTが404となることも確認。Claude Codeレビューはブロッカーなし、次回デプロイ時の本番Rules・索引・画面/API反映の注意を記録済み。

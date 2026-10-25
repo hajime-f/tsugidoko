@@ -8,7 +8,6 @@ import { Plus, X } from "lucide-react";
 import { isEnded, isHighlighted, applicationSchema, emptyApplication, applicationStatuses, type Application, type ApplicationInput } from "@/lib/applications";
 import { useWorkspace, type Workspace } from "./use-workspace";
 import { TaskBoard } from "./task-board";
-import { NotificationSettings } from "./notification-settings";
 import { JobImport } from "./job-import";
 import { ComparisonBoard } from "./comparison-board";
 
@@ -98,7 +97,6 @@ export function ApplicationWorkspace({ uid }: { uid: string }) {
       </>}
     </section>
     <ComparisonBoard workspace={workspace} edit={edit} />
-    <NotificationSettings />
     <Dialog.Root open={editing !== undefined} onOpenChange={open => { if (!open) setEditing(undefined); }}><Dialog.Portal><Dialog.Overlay className="dialog-overlay" /><Dialog.Content className="dialog-content workspace-dialog" onCloseAutoFocus={event => { if (opener.current?.isConnected) { event.preventDefault(); opener.current.focus(); } }}>
       <Dialog.Close className="dialog-close" aria-label="閉じる"><X size={20} /></Dialog.Close><Dialog.Title>{editing ? "応募先の詳細" : "応募先を登録"}</Dialog.Title><Dialog.Description>{editing ? "必要な情報を少しずつ残せます。" : "まずは会社名を入力してください。"}</Dialog.Description>
       {editing !== undefined && <ApplicationEditor key={editing?.id ?? "new"} application={editing} workspace={workspace} close={() => setEditing(undefined)} />}

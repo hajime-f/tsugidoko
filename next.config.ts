@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { PHASE_PRODUCTION_BUILD } from "next/constants";
 
 const nextConfig: NextConfig = {
   distDir: process.env.E2E_AUTH_EMULATOR === "1" ? ".next-auth-test" : ".next",
@@ -23,4 +24,9 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default function configure(phase: string): NextConfig {
+  if (phase === PHASE_PRODUCTION_BUILD && !process.env.NEXT_PUBLIC_FIREBASE_API_KEY?.trim()) {
+    throw new Error("NEXT_PUBLIC_FIREBASE_API_KEY must be configured before building.");
+  }
+  return nextConfig;
+}

@@ -6,19 +6,14 @@ runConfig:
   cpu: 1
   memoryMiB: 512
 env:
+  # This Web key is public in the browser bundle; API/referrer restrictions protect its use.
+  # Secret Manager keeps the literal value out of the Git repository.
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    secret: tsugidoko-firebase-web-api-key@1
+    availability:
+      - BUILD
   # Reject builds if the managed runtime is older than package.json requires.
   - variable: NPM_CONFIG_ENGINE_STRICT
     value: "true"
     availability:
       - BUILD
-# To enable email reminders, configure these RUNTIME variables after selecting SMTP:
-# APP_BASE_URL: public HTTPS origin of this backend
-# SMTP_HOST / SMTP_PORT (465 or STARTTLS 587) / SMTP_FROM
-# SMTP_USER / SMTP_PASSWORD: Secret Manager references (never literal credentials)
-# REMINDER_AUDIENCE: APP_BASE_URL + /api/internal/reminders
-# REMINDER_SERVICE_ACCOUNT: tsugidoko-reminders@tsugidoko-prod-hajime-f.iam.gserviceaccount.com
-# Example inside env (replace placeholders before enabling):
-# - variable: SMTP_PASSWORD
-#   secret: tsugidoko-smtp-password
-#   availability: [RUNTIME]
-# Deploy these settings and the API before running scripts/configure-reminders.mjs.

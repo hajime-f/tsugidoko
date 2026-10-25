@@ -480,5 +480,3 @@ h2 { font-size: 36px; line-height: 1.5; font-weight: 750; letter-spacing: -.035e
 .job-import > .button { margin-top: 12px; padding: 12px; font-size: 14px; }
 .job-candidate { margin-top: 14px; padding: 14px; background: white; border: 1px solid #ccd8c8; }
 .job-candidate .button { margin-top: 10px; padding: 10px; font-size: 13px; }
-
-.notification-toggle { margin-top: 20px; }

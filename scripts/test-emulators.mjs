@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 const rules = process.argv[2] === 'rules';
 const server = process.argv[2] === 'server';
-const env = { ...process.env, E2E_AUTH_EMULATOR: '1', SMTP_HOST:'127.0.0.1', SMTP_PORT:'2526', SMTP_FROM:'test@example.test', APP_BASE_URL:'http://127.0.0.1:3101', REMINDER_AUDIENCE:'https://example.test/api/internal/reminders', REMINDER_SERVICE_ACCOUNT:'reminders@example.test' };
+const env = { ...process.env, E2E_AUTH_EMULATOR: '1' };
 const homebrewJava = '/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home';
 if (!env.JAVA_HOME && existsSync(homebrewJava)) env.JAVA_HOME = homebrewJava;
 if (env.JAVA_HOME) env.PATH = `${env.JAVA_HOME}/bin:${env.PATH}`;

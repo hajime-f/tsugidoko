@@ -59,12 +59,11 @@ test('旧archivedフィールドが残った文書も状態を更新できる',a
   await assertSucceeds(updateDoc(appRef(alice,'legacy'),{endReason:'辞退',updatedAt:serverTimestamp()}));
   await assertFails(updateDoc(appRef(alice,'legacy'),{archived:'yes',updatedAt:serverTimestamp()}));
 });
-test('通知設定は本人だけが読め、設定・配信履歴・取得制限はサーバーだけが更新する',async()=>{
+test('廃止した通知データとサーバー用の取得制限はクライアントから読み書きできない',async()=>{
   for(const path of ['settings/notifications','notificationLog/2026-10-25','serverLimits/jobPreview']) {
     const ref=db=>doc(db,`users/alice/${path}`);
     await assertFails(setDoc(ref(alice),{enabled:true}));
     await assertFails(getDoc(ref(bob)));await assertFails(getDoc(ref(anon)));
-    if(!path.startsWith('serverLimits')) await assertSucceeds(getDoc(ref(alice)));
-    else await assertFails(getDoc(ref(alice)));
+    await assertFails(getDoc(ref(alice)));
   }
 });

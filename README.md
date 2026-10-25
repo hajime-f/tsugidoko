@@ -67,7 +67,7 @@ npm run build
 firebase deploy --only apphosting:tsugidoko --project tsugidoko-prod-hajime-f
 ```
 
-2026年10月25日、Googleログイン・応募管理・統一した選考状況・行動管理・比較・求人URL取り込みを本番へ公開しました。リビジョンは `tsugidoko-build-2026-10-25-001` です。メール通知はSMTP設定待ちのため無効です。検索エンジン向けには `noindex` を維持しています。
+2026年10月25日、Googleログイン・応募管理・統一した選考状況・行動管理・比較・求人URL取り込みを本番へ公開しました。リビジョンは `tsugidoko-build-2026-10-25-001` です。メール通知は取り下げました（下記参照）。検索エンジン向けには `noindex` を維持しています。
 
 ### Node.js セキュリティ更新の状況（2026年10月25日）
 
@@ -84,7 +84,11 @@ firebase deploy --only apphosting:tsugidoko --project tsugidoko-prod-hajime-f
 - 専用ホーム: http://127.0.0.1:3100/home （未ログイン時はトップページ `/` に移動）
 - Google アカウントで初回ログインすると Firebase Authentication にユーザーを作成します。Google のパスワードをこのアプリが受け取ることはありません。
 - SDK 標準のブラウザ永続化を利用し、再読み込みや別タブでも認証を共有します。アカウント画面からログアウトすると、ほかのタブの専用ホームもトップページに戻ります。
-- Firebase Web 接続先は `src/lib/firebase/client.ts` の `tsugidoko-prod-hajime-f`。公開識別情報のみで、Admin SDK・OAuth の秘密鍵は含めません。ツギココの Firebase 設定とは分離しています。
+- Firebase Web 接続先は `src/lib/firebase/client.ts` の `tsugidoko-prod-hajime-f`。APIキーは `NEXT_PUBLIC_FIREBASE_API_KEY` からビルド時に読み込み、値はGitに書きません。本番は `apphosting.yaml` のSecret Manager参照、通常のローカル開発はGit除外の `.env.local` に開発用キーを設定します。エミュレーターは `demo-key` を使い、実キーは不要です。
+- Web用キーはブラウザへ配信される公開識別情報であり、環境変数やSecret Managerに移しても秘密にはなりません。Google Cloudで使用APIとHTTPリファラーを制限し、データの閲覧・編集はFirebase Authenticationと本人限定Firestore Rulesで制御します。Admin SDK・OAuthの秘密鍵は含めません。ツギココのFirebase設定とは分離しています。
+- 本番キーはApp Hosting本番URL、同じバックエンドのCloud Run URL、Firebase認証用 `tsugidoko-prod-hajime-f.firebaseapp.com` のみに制限。開発キーは `http://localhost:3100`・`http://127.0.0.1:3100` と同認証ドメインに分離します。両キーのAPI許可はIdentity Toolkit・Token Service・Cloud Firestore・Cloud Datastore・Firebase Rulesのみ。リファラーは偽装できるため、本人認証やRulesの代わりにはなりません。App Checkは未導入です。
+- キーを更新するときは、制限付きの新キーを作り、Secret Managerの新バージョンと `apphosting.yaml` の参照を更新して再ビルド・デプロイします。本番の認証開始を確認してから旧キーを失効させます。古い画面を開いたままの場合は再読み込みが必要です。独自ドメインや開発ポートを追加するときはキーのリファラー制限とFirebase Authの許可ドメインも確認してください。
+- 2026年10月25日の切り替え時、Firebase Management APIによるWebAppの `apiKeyId` 更新は制限付き新キーを400で拒否しました（同じ旧キーIDへの更新は成功）。制限を緩めず、新キーをアプリへ明示的に設定しています。Consoleや `firebase apps:sdkconfig` のキー値を転記せず、上記Secret Manager参照と開発設定を正としてください。認証ポップアップもアプリから渡したキーを使います。
 - Google プロバイダーは有効化済みです。認証設定は Firebase Console の Authentication > Sign-in method で管理します。サポート用メールアドレスを公開Git履歴に残さないため、`firebase.json` に `auth` セクションは含めません。許可ドメインには `localhost`、`127.0.0.1`、本番 App Hosting のホスト名を追加済み（Firebase Console の Authentication > Settings > Authorized domains で管理）。
 - `/home` の応募先・行動・比較用の条件はFirestoreに保存。Security RulesがUIDによる本人限定のアクセスと入力検証を行います。端末ディスクへのFirestore永続キャッシュは有効にしていません。
 - 最新 Firebase SDK の Node.js 24 要件を避け、Node.js 22 対応の `firebase@12.19.0` を採用。`overrides` は互換性のある `@firebase/app` / `@firebase/app-compat` の統一と、gRPC の修正済みバージョンを適用するためです。
@@ -111,7 +115,7 @@ Firestore Standard `(default)`、ロケーション `asia-east1`（既存App Hos
 - 応募先: `users/{uid}/applications/{id}`
 - 行動: `users/{uid}/tasks/{id}`（applicationIdで紐付け）
 - アプリからの読み書きはログインした本人だけに許可し、ほかの利用者によるアクセスをRulesで拒否します。許可フィールド、文字数、選考情報、日時、行動の親応募先、期限の日付も検証します。
-- 終了した応募先と行動は削除せず保管します。応募先の永久削除・退会は未提供です。求人URL取り込みに対応し、メール通知はSMTP・定期ジョブ設定後に配信できます。
+- 終了した応募先と行動は削除せず保管します。応募先の永久削除・退会は未提供です。求人URL取り込みに対応しています。メール通知は取り下げ、期限はホームの行動一覧で確認します。
 - 期限は日付文字列で保存し、画面では端末のローカル日付・月曜始まりで分類します。
 - 比較表の選択状態は画面内のみ、比較に使う条件とメモは保存します。
 
@@ -131,38 +135,32 @@ firebase deploy --only firestore:rules,firestore:indexes --project tsugidoko-pro
 - Claude Codeの最終レビュー指摘（FAQの保存対象の主語、ほかの利用者に対するアクセス制限の表現）を反映済み。
 - 開発URL: http://127.0.0.1:3100/home 。未ログイン時はトップへ案内する。実Googleアカウントでの認証完了と本番画面の反映は別途。コミット・pushはしていない。
 
-## 選考状況・求人URL・期限メール（2026年10月25日）
+## 選考状況・求人URL（2026年10月25日）
 
 - 入力は「選考状況」一つ。検討中・応募済み・カジュアル面談・書類選考・一次面接・二次面接・最終面接・内定・入社決定・辞退・不採用・募集終了から直接選びます。
-- 内定は緑、入社決定はピンクで行を強調し、進行中の一覧に残します。辞退・不採用・募集終了だけ終了へ移動し、予定・比較・通知から通常は除外します。状況を選び直して復帰できます。
+- 内定は緑、入社決定はピンクで行を強調し、進行中の一覧に残します。辞退・不採用・募集終了だけ終了へ移動し、予定・比較から通常は除外します。状況を選び直して復帰できます。
 - 保存形式は既存の stage/endReason と互換にしています。画面は endReason があればそれを優先し、なければ stage を一つの状況として表示します。状況変更時は両フィールドを原子的に更新し、選考中へ戻すと endReason を空にします。別項目だけの編集では過去の段階を書き換えません。
 - アーカイブ操作は廃止済み。旧 archived の値は無視します。応募先の記録は削除しません。
 
 - 登録画面の「求人URLから入力」で、公開ページの JSON-LD JobPosting を候補として表示します。確認・修正して登録します。ログイン必須・自動取得を拒否するページ・構造化データのないページは手入力できます。取得は認証必須、1ユーザーあたり毎分5回です。
-- 期限メールは既定OFF。日本時間の朝9時に、今日・明日が期限で未完了、かつ終了していない応募先の予定（内定・入社決定も含む）の件数だけを、認証済みアカウントの確認済みメールへ送ります。社名・職種・行動名は送りません。ホームの「メール通知」で停止します。
-- SMTPと定期ジョブの設定がない環境では、画面に「メール配信の設定中」と表示し、有効化を拒否します。送信先は利用者が任意に指定できず、サーバーがFirebase Authenticationから読み取ります。
+- メール通知は2026年10月25日の依頼で取り下げました。通知設定画面・配信API・SMTP処理・Scheduler設定スクリプト・通知用のRules/索引定義を撤去し、送信サービスの設定待ちも解消しました。次の行動と期限の管理は引き続きホームで利用できます。
+- この撤去変更は開発環境に反映済みで、本番へのデプロイは未実施です。本番のメール配信はもともと無効で、SMTPとSchedulerは未設定です。次回は画面/APIとFirestore Rules/indexesを併せて反映してください。既存の応募先・予定・メモや通知用の過去データを削除する処理は行いません。
+- 次回のFirestoreデプロイでは、不要になった `settings.enabled` のcollection group索引の削除確認が出る場合があります。対象を確認してこの索引を削除し、ほかの索引まで一括削除しないでください。本番には次回の反映まで通知画面/APIと通知データの本人読み取り許可が残ります。
 
 ### 開発用サーバー認証
 
 本番のAdmin SDKはApp HostingのApplication Default Credentialsを使います。ローカルでは通常のADC、または開発モード限定の `FIREBASE_USE_GCLOUD_CREDENTIALS=1` と `GCLOUD_BIN` で、ログイン済みgcloudの短命アクセストークンを利用できます。現在の `.env.local` は後者で、秘密値は格納していません。このモードはオーナー権限でRulesを経由せず実プロジェクトに接続するため、他ユーザーの情報を対象に試験しないでください。自動テストは必ず `demo-tsugidoko` のエミュレーターを使います。リポジトリへ資格情報や `.env.local` を追加しないでください。
 
-### メール配信を有効にする手順
-
-1. 送信サービスで送信元を用意し、SMTPホスト・ポート・認証情報を取得します。SMTP_USER/SMTP_PASSWORDはSecret Managerへ保存し、App Hostingバックエンドにアクセス権を付与します。`apphosting.yaml` のコメントに沿ってsecret参照を設定します。
-2. 実行時環境変数 `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM`, `SMTP_USER`, `SMTP_PASSWORD`, `APP_BASE_URL`, `REMINDER_AUDIENCE`, `REMINDER_SERVICE_ACCOUNT` を設定します。APP_BASE_URLは公開HTTPSオリジン、REMINDER_AUDIENCEはその `/api/internal/reminders` の完全URLです。専用サービスアカウントは `tsugidoko-reminders@tsugidoko-prod-hajime-f.iam.gserviceaccount.com` です。TLSを必須とし、465またはSTARTTLSの587を使います。
-3. Firestore Rules/indexesと画面・APIをデプロイした後、`node scripts/configure-reminders.mjs https://公開ホスト` を実行します。日本時間9時、OIDC認証、専用サービスアカウント、再試行3回、attemptDeadline 300秒のCloud Schedulerジョブを作成または更新します。このコマンドはクラウド設定を変更するため、ビルドから自動実行しません。
-4. Cloud Runのリクエスト上限が通知の処理予算150秒より長いことをデプロイ後に確認します。2026年10月25日時点のtsugidokoは300秒でした。通知設定をオンにし、確認済みの本人メールで配送を検証します。
-
-SMTPはFirestoreと原子的に確定できません。送信直前に状態を記録し、成功は `sent`、明確なSMTP拒否は `failed`（再試行可）、結果不明は `uncertain` として自動再送しません。送信開始前の `claimed` は15分後に再取得できます。処理停止で `sending` のまま残った場合も重複防止を優先し、配信サービスの履歴と照合して手動判断します。全体処理が時間切れになったときはSchedulerが再試行し、その日の送信済み利用者をスキップします。SMTPの成功はサーバー受領であり、受信箱への到達保証ではありません。
+### サーバー・権限の検証
 
 ```sh
-npm run test:server   # Auth/Firestore Emulator + 127.0.0.1:2526 のテストSMTP。外部送信なし
+npm run test:server   # Auth/Firestore Emulatorで求人URL取得・認証・SSRF・回数制限を検証
 npm run test:rules
 npm run test:auth -- tests/e2e/workspace.spec.ts
 ```
 
 E2E用のNext.jsとビルドは型生成ファイルを共有するため、`npm run build` はE2Eが終了してから実行してください。
 
-実装で参照した公式資料: [JobPostingの構造化データ](https://developers.google.com/search/docs/appearance/structured-data/job-posting)、[Firebase Admin SDK](https://firebase.google.com/docs/admin/setup)、[SchedulerのOIDC認証](https://docs.cloud.google.com/scheduler/docs/http-target-auth)、[App Hostingの環境変数とシークレット](https://firebase.google.com/docs/app-hosting/configure)。
+実装で参照した公式資料: [JobPostingの構造化データ](https://developers.google.com/search/docs/appearance/structured-data/job-posting)、[Firebase Admin SDK](https://firebase.google.com/docs/admin/setup)、[App Hostingの環境変数とシークレット](https://firebase.google.com/docs/app-hosting/configure)。
 
-今回の検証結果: E2E21ケース（通知設定の3件は非同期保存を待つ形に直して再実行）、Rules7件、サーバー9件が成功。本番ビルド成功、npm auditは0件。旧データ互換のRulesと通知用の索引は実プロジェクトへ適用済み。開発用の実Firestore読み取りと公開ページ取得も確認しました。SMTPサービスと送信元は未設定のため、実メール配信とSchedulerの作成は未実施です。
+メール通知の撤去前に実施した検証結果はCONTEXT.mdの履歴に記録しています。撤去後の検証結果も同ファイル末尾を参照してください。
