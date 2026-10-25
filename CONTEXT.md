@@ -491,3 +491,14 @@ Claude からは一括登録を必須とする提案があったが、相談の�
 - 本番メール配信はもともとSMTP未設定・Scheduler未作成で無効。今回の撤去コードは未デプロイ、未コミット・未push。次回反映時に画面/APIとFirestore Rules/indexesも併せて更新する。
 - 次回デプロイまで、本番には通知画面、`/api/notifications`、`/api/internal/reminders` と通知データの本人読み取り許可が残る。配信は無効。索引デプロイで削除確認が出る場合は対象が不要になった `settings.enabled` のcollection group索引であることを確認する。一括でほかの索引を削除しない。
 - 撤去後の検証完了: サーバー6件、Rules7件、PCの応募管理/行動/比較/旧データ/求人URL E2E5件が成功。本番ビルド成功（初回は開発サーバーが生成した古い通知APIの型参照が残って失敗。該当生成ファイルだけ除去し再実行で成功）。開発サーバーで通知APIのGETと内部配信APIのPOSTが404となることも確認。Claude Codeレビューはブロッカーなし、次回デプロイ時の本番Rules・索引・画面/API反映の注意を記録済み。
+
+## APIキー対策・メール通知撤去の本番反映（2026年10月25日）
+
+藤田さんの `commit & push & deploy` 指示で、前述の未コミット・未デプロイ状態を解消しました。この節を最新の公開状況として扱います。
+
+- 実装コミット `5f3bcd2`（Firebase APIキーの管理を強化しメール通知を撤去）をGitHub mainへpush済み。キー値はGitに含まれていないことを確認。GitHubの未解決secret scanning警告は0件。
+- Firestore Rulesとindexesを先に本番へデプロイ。既存の追加索引は通知用 `settings.enabled` の1件だけで、複合索引は0件と確認してから、そのfield overrideを削除。collection group索引はなくなり、標準のcollection索引への復帰処理が開始された。本人の通知設定/配信履歴の読み取り許可も撤去。応募先・行動の権限は維持し、データ削除は行っていない。
+- App Hostingデプロイ成功。Cloud Build `9b2d07da-acad-441b-8e7d-0c3307f7dcf3` 成功、Cloud Run `tsugidoko-build-2026-10-25-003` がReady、トラフィック100%。GitHub pushだけでなくFirebase CLIからデプロイした。
+- 本番Chrome検証成功: トップHTTP200、Googleログイン画面へ遷移、未ログインの/homeをトップへ転送、旧/loginの転送、サンプルで入社決定のピンクと辞退時の終了移動、noindex、JSエラー0件。通知設定APIのGETと内部配信APIのPOSTは404、求人URL APIは未認証401。実アカウントの認証完了・本番データの登録は行っていない。
+- 本番URL: https://tsugidoko--tsugidoko-prod-hajime-f.asia-east1.hosted.app
+- READMEとAGENTSの公開状況も更新。Claude Codeへ本番反映結果を共有済み。メール通知の再開予定やSMTP回答待ちはない。
