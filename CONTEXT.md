@@ -451,3 +451,16 @@ Claude からは一括登録を必須とする提案があったが、相談の�
 - アーカイブ撤去と、行動・比較・通知から終了案件を通常除外する方針は継続。
 - 新規登録で直接「内定」等の結果を選んだ場合、互換用stageは既定の検討中、endReasonは選んだ結果になる。これは以前の段階が未記録であることを意味し、履歴・統計機能で「実際に検討中から内定した」と解釈しないこと。UIには一つの状況だけを表示する。
 - 検証完了: unit4件、E2E21ケース（18件成功、旧データケース3件はテストの要素指定を直して再実行で成功）、server9件、本番ビルド成功。PC表示を目視確認。Claude Codeレビュー問題なし。画面/APIの本番デプロイとコミット・pushは未実施。
+
+## 本番公開（2026年10月25日）
+
+- 藤田さんの `commit & push & deploy` 指示で、レビュー・検証済みの全実装を `4df6e7c`（Google認証と応募管理・選考状況・比較機能を実装）としてmainへコミットし、GitHub origin/mainへpush。
+- Firestore Rules・索引を先に適用し、Firebase App Hosting `tsugidoko` へローカルソースからデプロイ完了。GitHub pushだけで自動デプロイする設定ではない。
+- Cloud Build `0404b26c-70f4-4cd1-ac3b-0cea68b67d35` 成功。本番リビジョン `tsugidoko-build-2026-10-25-001` がReadyとなり、トラフィック100%を配信。
+- Node.js 22.23.4 の指定・インストールをCloud Buildログで確認。そのイメージで新リビジョンが稼働。10月21日から未完了だった本番セキュリティ更新は解消。engine-strictも適用済み。
+- 公開URL: https://tsugidoko--tsugidoko-prod-hajime-f.asia-east1.hosted.app
+- 本番Chrome確認: トップHTTP200、Googleで登録/ログイン表示、サンプルの入社決定ピンク/辞退による終了、/home未認証ガード、旧/loginのトップ転送、noindex、ページJSエラーなし。通知設定/求人URL APIの未認証401、未設定の通知実行API503を確認。
+- 実Googleアカウントでの認証完了と実応募データの保存は自動検証していない。Auth/Firestore EmulatorのE2E・Rules検証は別途完了済み。
+- 本番実行アカウントは firebase-app-hosting-compute。sdkAdminServiceAgent等の付与を読み取り確認。Cloud Runのtimeoutは300秒。
+- SMTP未設定・Scheduler未作成。メール通知は無効のまま。資格情報提供後に有効化する。
+- 今回藤田さんがルートディレクトリに置いたキーチェーン確認画面のスクリーンショットはGitへ追加しない。作業中に追加されたユーザーファイルとして保持。

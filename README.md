@@ -67,15 +67,14 @@ npm run build
 firebase deploy --only apphosting:tsugidoko --project tsugidoko-prod-hajime-f
 ```
 
-本番に公開中の画面はログイン未実装の試作版です。ログイン・応募管理・行動管理・比較は開発環境で実装済みですが、App Hostingへは未デプロイです。検索エンジン向けには `noindex` を維持しています。
+2026年10月25日、Googleログイン・応募管理・統一した選考状況・行動管理・比較・求人URL取り込みを本番へ公開しました。リビジョンは `tsugidoko-build-2026-10-25-001` です。メール通知はSMTP設定待ちのため無効です。検索エンジン向けには `noindex` を維持しています。
 
-### Node.js セキュリティ更新の状況（2026年10月21日）
+### Node.js セキュリティ更新の状況（2026年10月25日）
 
-- 開発環境は 22.23.4 へ更新済み。ビルド、画面テスト12件、agent-bridge テスト9件が成功。
-- 本番は更新未完了。`build-2026-10-21-002` で再デプロイしたものの、Google 側の `GOOGLE_RUNTIME_VERSION` が 22.23.3 を指定し、`engines.node` の要求より古い版でビルドされた。
-- 確認時点で Google 配布の `https://dl.google.com/runtimes/ubuntu2204/nodejs/nodejs-22.23.4.tar.gz` は 404。管理されたベースイメージの自動更新は有効のまま維持している。
-- 再発を防ぐため、`apphosting.yaml` にビルド専用の `NPM_CONFIG_ENGINE_STRICT=true` を追加した。この追加設定は未デプロイ。次回から要求バージョンに満たないランタイムでのビルドは失敗する。
-- Google 側で修正版が利用可能になったら再デプロイし、Cloud Build の Node.js インストールログと本番ランタイムへの反映を確認する。再デプロイ成功だけで更新済みと判断しない。
+- 開発・本番ともに22.23.4へ更新済み。10月21日時点のGoogle側ランタイム提供待ちは解消しました。
+- Cloud Build `0404b26c-70f4-4cd1-ac3b-0cea68b67d35` のログで `Using exact version 22.23.4 for Node.js` とインストールを確認し、ビルド成功後の新リビジョンへ本番トラフィック100%が切り替わりました。
+- `NPM_CONFIG_ENGINE_STRICT=true` を本番ビルドにも適用。要求より古いNode.jsでのビルドを防ぎます。ベースイメージの自動更新も有効です。
+- 本番URLでトップ、登録・ログインボタン、サンプルの状況変更、未認証のホームからトップへの遷移、APIの未認証拒否を確認しました。実Googleアカウントでのログイン完了・データ保存は手動確認が必要です。
 
 修正内容: [Node.js 公式セキュリティ告知](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases)。
 
