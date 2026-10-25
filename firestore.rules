@@ -1,0 +1,61 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function owner(uid) { return request.auth != null && request.auth.uid == uid; }
+    function text(d, key, max) { return d[key] is string && d[key].size() <= max; }
+    function timestamps(d) {
+      return d.createdAt is timestamp && d.updatedAt == request.time
+        && (resource == null ? d.createdAt == request.time : d.createdAt == resource.data.createdAt);
+    }
+    function application(d) {
+      return d.keys().hasAll(['company','role','source','url','stage','endReason','salary','location','workStyle','positives','concerns','notes','createdAt','updatedAt'])
+        && d.keys().hasOnly(['company','role','source','url','stage','endReason','salary','location','workStyle','positives','concerns','notes','createdAt','updatedAt','archived'])
+        && (!('archived' in d) || d.archived is bool)
+        && text(d, 'company', 120) && d.company.matches('.*[^\\s].*')
+        && text(d, 'role', 120) && text(d, 'source', 120)
+        && text(d, 'url', 2000) && (d.url == '' || d.url.matches('https?://[^\\s]+'))
+        // The single UI status maps to stage/endReason; keep legacy stage 内定 for compatibility.
+        && d.stage in ['検討中','応募済み','カジュアル面談','書類選考','一次面接','二次面接','最終面接','内定']
+        && d.endReason in ['', '内定', '入社決定','辞退','不採用','募集終了']
+        && text(d, 'salary', 120) && text(d, 'location', 120) && text(d, 'workStyle', 120)
+        && text(d, 'positives', 5000) && text(d, 'concerns', 5000) && text(d, 'notes', 5000)
+        && timestamps(d);
+    }
+    function task(d, uid) {
+      return d.keys().hasAll(['applicationId','title','dueDate','done','createdAt','updatedAt'])
+        && d.keys().hasOnly(['applicationId','title','dueDate','done','createdAt','updatedAt'])
+        && text(d, 'applicationId', 128) && d.applicationId.matches('[^/]+')
+        && exists(/databases/$(database)/documents/users/$(uid)/applications/$(d.applicationId))
+        && text(d, 'title', 200) && d.title.matches('.*[^\\s].*')
+        && text(d, 'dueDate', 10) && (d.dueDate == '' || (d.dueDate.matches('(20[0-9]{2}|2100)-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])') && calendarDate(d.dueDate)))
+        && d.done is bool && timestamps(d);
+    }
+    function calendarDate(value) {
+      let parts = value.split('-');
+      let year = int(parts[0]);
+      let month = int(parts[1]);
+      let day = int(parts[2]);
+      let leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+      return day <= (month == 2 ? (leap ? 29 : 28) : (month in [4, 6, 9, 11] ? 30 : 31));
+    }
+    match /users/{uid}/applications/{id} {
+      allow read: if owner(uid);
+      allow create, update: if owner(uid) && application(request.resource.data);
+      // Ending a selection preserves its records. Permanent deletion is not exposed yet.
+      allow delete: if false;
+    }
+    match /users/{uid}/settings/notifications {
+      allow read: if owner(uid);
+      // Writes go through the authenticated API, which validates mail readiness and email.
+      allow write: if false;
+    }
+    match /users/{uid}/notificationLog/{date} {
+      allow read: if owner(uid);
+      allow write: if false;
+    }
+    match /users/{uid}/tasks/{id} {
+      allow read, delete: if owner(uid);
+      allow create, update: if owner(uid) && task(request.resource.data, uid);
+    }
+  }
+}

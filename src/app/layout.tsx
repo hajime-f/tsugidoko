@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { AuthProvider } from "@/components/auth/auth-provider";
 
 export const metadata: Metadata = {
   title: "ツギドコ | 転職活動を、ひとまとめ。",
@@ -8,5 +9,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="ja"><body>{children}</body></html>;
+  return <html lang="ja" data-scroll-behavior="smooth"><body><AuthProvider>{children}</AuthProvider></body></html>;
 }

@@ -1,6 +1,7 @@
 # Local dependencies and build output
 node_modules/
 .next/
+.next-auth-test/
 out/
 coverage/
 playwright-report/

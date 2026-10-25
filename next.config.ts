@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  distDir: process.env.E2E_AUTH_EMULATOR === "1" ? ".next-auth-test" : ".next",
   poweredByHeader: false,
   devIndicators: false,
   webpack(config) {

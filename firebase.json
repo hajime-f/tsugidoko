@@ -1,0 +1,62 @@
+{
+  "apphosting": [
+    {
+      "backendId": "tsugidoko",
+      "rootDir": ".",
+      "ignore": [
+        "node_modules",
+        ".git",
+        ".next",
+        ".next-auth-test",
+        "out",
+        ".firebase",
+        ".agent-bridge",
+        ".agents",
+        ".codex",
+        ".claude",
+        ".aws",
+        ".env",
+        ".env.*",
+        "*.pem",
+        "*firebase-adminsdk*",
+        "service-account*.json",
+        "serviceAccount*.json",
+        "tests",
+        "test-results",
+        "playwright-report",
+        "coverage",
+        "*.tsbuildinfo",
+        ".DS_Store",
+        "firebase-debug*.log",
+        "firestore-debug.log",
+        "ui-debug.log"
+      ]
+    }
+  ],
+  "emulators": {
+    "auth": {
+      "host": "127.0.0.1",
+      "port": 9199
+    },
+    "ui": {
+      "enabled": false
+    },
+    "hub": {
+      "host": "127.0.0.1",
+      "port": 4411
+    },
+    "logging": {
+      "host": "127.0.0.1",
+      "port": 4511
+    },
+    "singleProjectMode": true,
+    "firestore": {
+      "host": "127.0.0.1",
+      "port": 8180
+    }
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  }
+}

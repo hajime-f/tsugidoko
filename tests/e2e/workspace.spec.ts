@@ -1,0 +1,227 @@
+import { expect, test, type Page } from "@playwright/test";
+
+test.skip(process.env.E2E_AUTH_EMULATOR !== "1", "Uses isolated Auth and Firestore emulators.");
+async function signIn(page: Page, email: string) {
+  await page.goto("/");
+  const opened = page.waitForEvent("popup");
+  await page.getByRole("button", {name:"ログイン", exact:true}).click();
+  const popup = await opened;
+  await popup.waitForURL(/127\.0\.0\.1:9199/);
+  await popup.waitForLoadState("domcontentloaded");
+  await popup.locator("#add-account-button").click();
+  await popup.locator("#email-input").fill(email);
+  await popup.locator("#display-name-input").fill("応募管理テスト");
+  await popup.locator("#sign-in").click();
+  await expect(page).toHaveURL(/\/home$/);
+  await expect(page.getByRole("button", {name:"応募先を登録",exact:true})).toBeEnabled();
+}
+async function addCompany(page: Page, name: string) {
+  await page.getByRole("button",{name:"応募先を登録",exact:true}).click();
+  const dialog=page.getByRole("dialog");
+  await dialog.getByLabel("会社名（必須）").fill(name);
+  await dialog.getByRole("button",{name:"登録する",exact:true}).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole("button",{name,exact:true})).toBeVisible();
+}
+
+test("応募管理: 保存・再読込・編集・終了・復帰・別ユーザー分離",async({page,context,baseURL},info)=>{
+  await signIn(page,`apps-${info.project.name}-${Date.now()}@example.test`);
+  await addCompany(page,"応募テスト株式会社");
+  await page.getByLabel("応募テスト株式会社の選考状況",{exact:true}).selectOption("最終面接");
+  await expect(page.getByRole("status").filter({hasText:"選考状況を更新しました"})).toBeVisible();
+  await page.reload();
+  await expect(page.getByLabel("応募テスト株式会社の選考状況",{exact:true})).toHaveValue("最終面接");
+  await page.getByRole("button",{name:"応募テスト株式会社",exact:true}).click();
+  await page.getByLabel("職種・識別ラベル",{exact:true}).fill("エンジニア");
+  await page.getByLabel("応募経路",{exact:true}).fill("紹介");
+  await page.getByRole("button",{name:"保存する",exact:true}).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  const other=await context.newPage();await other.goto(`${baseURL}/home`);
+  await expect(other.locator("#applications").getByText("エンジニア",{exact:true})).toBeVisible();
+  await page.getByLabel("応募テスト株式会社の選考状況",{exact:true}).selectOption("辞退");
+  await expect(page.getByRole("button",{name:"応募テスト株式会社",exact:true})).toHaveCount(0);
+  await page.getByRole("group",{name:"応募先の表示"}).getByRole("button",{name:/終了/}).click();
+  await expect(page.getByLabel("応募テスト株式会社の選考状況",{exact:true})).toHaveValue("辞退");
+  await page.getByLabel("応募テスト株式会社の選考状況",{exact:true}).selectOption("最終面接");
+  await page.getByRole("group",{name:"応募先の表示"}).getByRole("button",{name:/進行中/}).click();
+  await expect(page.getByRole("button",{name:"応募テスト株式会社",exact:true})).toBeVisible();
+  await page.getByRole("button",{name:"アカウント",exact:true}).click();
+  await page.getByRole("button",{name:"ログアウト",exact:true}).click();
+  await expect(other).toHaveURL(/\/$/);
+  await signIn(page,`other-${info.project.name}-${Date.now()}@example.test`);
+  await expect(page.getByRole("button",{name:"応募テスト株式会社",exact:true})).toHaveCount(0);
+  await expect(page.getByText("最初の応募先を登録しましょう",{exact:true})).toBeVisible();
+});
+
+test("次の行動: 期限分類・編集・完了・復帰・終了案件・削除",async({page},info)=>{
+  await signIn(page,`tasks-${info.project.name}-${Date.now()}@example.test`);
+  await addCompany(page,"予定テスト株式会社");
+  const today=await page.evaluate(()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`});
+  await page.getByRole('button',{name:'やることを追加',exact:true}).click();
+  await page.getByLabel('やること（必須）').fill('日程を返信する');
+  await page.getByLabel('期限（任意）').fill(today);
+  await page.getByRole('button',{name:'追加する',exact:true}).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('region',{name:'今日',exact:true})).toContainText('日程を返信する');
+  await page.reload();
+  await expect(page.getByRole('region',{name:'今日',exact:true})).toContainText('日程を返信する');
+  await page.getByRole('button',{name:'日程を返信する',exact:true}).click();
+  await page.getByLabel('期限（任意）').fill('');
+  await page.getByRole('button',{name:'保存する',exact:true}).click();
+  await expect(page.getByRole('region',{name:'期限未定',exact:true})).toContainText('日程を返信する');
+  await page.getByRole('checkbox',{name:'日程を返信するを完了にする'}).click();
+  await page.getByText('完了したこと（1件）',{exact:true}).click();
+  await page.getByRole('checkbox',{name:'日程を返信するを未完了に戻す'}).click();
+  await page.getByLabel('予定テスト株式会社の選考状況',{exact:true}).selectOption('辞退');
+  await expect(page.getByRole('button',{name:'日程を返信する',exact:true})).toHaveCount(0);
+  await page.getByRole('checkbox',{name:'終了した選考のやることも表示'}).check();
+  await expect(page.getByRole('button',{name:'日程を返信する',exact:true})).toBeVisible();
+  page.once('dialog',dialog=>dialog.accept());
+  await page.getByRole('button',{name:'日程を返信するを削除'}).click();
+  await expect(page.getByRole('button',{name:'日程を返信する',exact:true})).toHaveCount(0);
+});
+
+test("比較: 条件・面接メモの保存、横並び、未入力と終了案件",async({page},info)=>{
+  await signIn(page,`compare-${info.project.name}-${Date.now()}@example.test`);
+  await addCompany(page,'比較A社');await addCompany(page,'比較B社');
+  await page.getByRole('button',{name:'比較A社',exact:true}).click();
+  await page.getByLabel('年収・提示条件',{exact:true}).fill('600〜700万円');
+  await page.getByLabel('勤務地',{exact:true}).fill('東京');
+  await page.getByLabel('働き方',{exact:true}).fill('週3日在宅');
+  await page.getByLabel('魅力に感じる点',{exact:true}).fill('裁量が大きい');
+  await page.getByLabel('気になる点',{exact:true}).fill('残業時間を確認');
+  await page.getByLabel('面接メモ・確認したいこと',{exact:true}).fill('次回は開発体制を質問する');
+  await page.getByRole('button',{name:'保存する',exact:true}).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.reload();
+  const comparison=page.locator('#comparison');
+  await comparison.getByRole('checkbox',{name:/比較A社/}).check();
+  await comparison.getByRole('checkbox',{name:/比較B社/}).check();
+  const table=comparison.getByRole('table');
+  await expect(table).toContainText('600〜700万円');await expect(table).toContainText('次回は開発体制を質問する');
+  await expect(table.getByRole('row',{name:/勤務地/})).toContainText('東京');
+  await expect(table.getByRole('row',{name:/勤務地/})).toContainText('未入力');
+  await table.getByRole('button',{name:/条件・メモを編集.*比較A社/}).click();
+  await expect(page.getByLabel('年収・提示条件',{exact:true})).toHaveValue('600〜700万円');
+  await page.getByRole('button',{name:'キャンセル',exact:true}).click();
+  await expect(table.getByRole('button',{name:/条件・メモを編集.*比較A社/})).toBeFocused();
+  await page.getByLabel('比較B社の選考状況',{exact:true}).selectOption('不採用');
+  await expect(table).not.toContainText('比較B社');
+  await comparison.getByRole('checkbox',{name:'終了した選考も選べるようにする'}).check();
+  await expect(table).toContainText('比較B社');
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await comparison.scrollIntoViewIfNeeded();
+  await page.screenshot({path:info.outputPath('comparison.png')});
+});
+
+test('選考状況: 旧アーカイブも表示し、終了・進行中に移動して記録を保持',async({page},info)=>{
+  const email=`legacy-${info.project.name}-${Date.now()}@example.test`;
+  await signIn(page,email);
+  await addCompany(page,'保管テスト社');
+  await page.getByLabel('保管テスト社の選考状況',{exact:true}).selectOption('カジュアル面談');
+  await page.getByRole('button',{name:'やることを追加',exact:true}).click();
+  await page.getByLabel('やること（必須）').fill('保管される予定');
+  await page.getByRole('button',{name:'追加する',exact:true}).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  // Simulate data written by the previous version; never access the real project.
+  const accounts=await page.request.get('http://127.0.0.1:9199/identitytoolkit.googleapis.com/v1/projects/demo-tsugidoko/accounts:batchGet',{headers:{Authorization:'Bearer owner'}});
+  expect(accounts.ok()).toBe(true);
+  const user=(await accounts.json()).users.find((user:{email:string})=>user.email===email);
+  const root=`http://127.0.0.1:8180/v1/projects/demo-tsugidoko/databases/(default)/documents/users/${user.localId}/applications`;
+  const apps=await page.request.get(root,{headers:{Authorization:'Bearer owner'}});
+  expect(apps.ok()).toBe(true);
+  const name=(await apps.json()).documents[0].name;
+  const updated=await page.request.patch(`http://127.0.0.1:8180/v1/${name}?updateMask.fieldPaths=archived&updateMask.fieldPaths=notes&updateMask.fieldPaths=stage`,{headers:{Authorization:'Bearer owner'},data:{fields:{archived:{booleanValue:true},notes:{stringValue:'以前の面接メモ'},stage:{stringValue:'内定'}}}});
+  expect(updated.ok()).toBe(true);
+  await page.reload();
+  await expect(page.getByRole('button',{name:'保管テスト社',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'保管される予定',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:/アーカイブ/})).toHaveCount(0);
+  await page.locator('#comparison').getByRole('checkbox',{name:/保管テスト社/}).check();
+  const state=page.getByLabel('保管テスト社の選考状況',{exact:true});
+  await expect(page.locator('.workspace-table tbody tr').getByRole('combobox')).toHaveCount(1);
+  await expect(state).toHaveValue('内定');
+  await page.getByRole('button',{name:'保管テスト社',exact:true}).click();
+  await expect(page.getByRole('dialog').getByRole('combobox')).toHaveCount(1);
+  await expect(page.getByRole('dialog').getByRole('combobox',{name:'選考状況',exact:true})).toHaveValue('内定');
+  await page.getByLabel('応募経路',{exact:true}).fill('紹介');
+  await page.getByRole('button',{name:'保存する',exact:true}).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  const migrated=await page.request.get(`http://127.0.0.1:8180/v1/${name}`,{headers:{Authorization:'Bearer owner'}});
+  const fields=(await migrated.json()).fields;
+  expect(fields.stage.stringValue).toBe('内定');
+  expect(fields.endReason.stringValue).toBe('');
+  expect(fields.notes.stringValue).toBe('以前の面接メモ');
+
+  const row=page.locator('.workspace-table tbody tr').filter({has:page.getByRole('button',{name:'保管テスト社',exact:true})});
+  for (const value of ['内定','入社決定']) {
+    await state.selectOption(value);
+    await expect(page.getByRole('status').filter({hasText:'選考状況を更新しました'})).toBeVisible();
+    await page.reload();
+    await expect(state).toHaveValue(value);
+    await expect(page.locator('.stage-summary').getByText(value,{exact:false})).toContainText('1');
+    await page.getByRole('combobox',{name:/状況で絞り込み/}).selectOption(value);
+    await expect(state).toBeVisible();
+    await page.getByRole('combobox',{name:/状況で絞り込み/}).selectOption('');
+    await expect(row.locator('td').first()).toHaveCSS('background-color',value === '入社決定' ? 'rgb(252, 231, 240)' : 'rgb(234, 244, 237)');
+    await expect(page.getByRole('group',{name:'応募先の表示'}).getByRole('button',{name:'進行中 1',exact:true})).toBeVisible();
+    await expect(page.getByRole('group',{name:'応募先の表示'}).getByRole('button',{name:'終了 0',exact:true})).toBeVisible();
+    await expect(page.getByRole('button',{name:'保管される予定',exact:true})).toBeVisible();
+    await expect(page.locator('#comparison').getByRole('checkbox',{name:/保管テスト社/})).toBeVisible();
+  }
+  await row.scrollIntoViewIfNeeded();
+  await page.screenshot({path:info.outputPath('highlight.png')});
+  await state.selectOption('検討中');
+  await expect(row).not.toHaveClass(/application-highlight/);
+  await page.reload();
+  await expect(state).toHaveValue('検討中');
+  await page.getByLabel('保管テスト社の選考状況',{exact:true}).selectOption('辞退');
+  await expect(page.getByRole('button',{name:'保管テスト社',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'保管される予定',exact:true})).toHaveCount(0);
+  await expect(page.locator('#comparison').getByRole('checkbox',{name:/保管テスト社/})).toHaveCount(0);
+  await page.getByRole('group',{name:'応募先の表示'}).getByRole('button',{name:/終了/}).click();
+  await expect(state).toHaveValue('辞退');
+  await page.getByRole('button',{name:'保管テスト社',exact:true}).click();
+  await expect(page.getByLabel('面接メモ・確認したいこと',{exact:true})).toHaveValue('以前の面接メモ');
+  await page.getByRole('dialog').getByRole('combobox',{name:/選考状況/}).selectOption('検討中');
+  await page.getByRole('button',{name:'保存する',exact:true}).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.getByRole('group',{name:'応募先の表示'}).getByRole('button',{name:/進行中/}).click();
+  await expect(page.getByRole('button',{name:'保管テスト社',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'保管される予定',exact:true})).toBeVisible();
+});
+
+test('求人URL: 候補を確認・修正して保存、取得不可なら手入力',async({page},info)=>{
+  await signIn(page,`import-${info.project.name}-${Date.now()}@example.test`);
+  await page.route('**/api/job-preview',route=>route.fulfill({json:{candidates:[{company:'取得した会社',role:'開発職',location:'東京',salary:'600万円',workStyle:'リモート',url:'https://example.test/job'}],message:'内容を確認してください。'}}));
+  await page.getByRole('button',{name:'応募先を登録',exact:true}).click();
+  await page.getByLabel('求人URLから入力（任意）').fill('https://example.test/job');
+  await page.getByRole('button',{name:'求人情報を取得',exact:true}).click();
+  await page.getByRole('button',{name:'この求人を入力欄に反映'}).click();
+  await expect(page.getByLabel('職種・識別ラベル',{exact:true})).toHaveValue('開発職');
+  await page.getByLabel('会社名（必須）').fill('確認して修正した会社');
+  await page.getByRole('button',{name:'登録する',exact:true}).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);await page.reload();
+  await page.getByRole('button',{name:'確認して修正した会社',exact:true}).click();
+  await expect(page.getByLabel('求人URL',{exact:true})).toHaveValue('https://example.test/job');
+  await expect(page.getByLabel('年収・提示条件',{exact:true})).toHaveValue('600万円');
+  await page.getByRole('button',{name:'キャンセル',exact:true}).click();
+  await page.route('**/api/job-preview',route=>route.fulfill({status:502,contentType:'text/html',body:'bad gateway'}));
+  await page.getByRole('button',{name:'応募先を登録',exact:true}).click();
+  await page.getByLabel('求人URLから入力（任意）').fill('https://example.test/private');
+  await page.getByRole('button',{name:'求人情報を取得',exact:true}).click();
+  await expect(page.getByRole('status').filter({hasText:'手入力で登録してください'})).toBeVisible();
+  await page.getByLabel('会社名（必須）').fill('手入力した会社');
+  await page.getByRole('button',{name:'登録する',exact:true}).click();
+  await expect(page.getByRole('button',{name:'手入力した会社',exact:true})).toBeVisible();
+});
+
+test('メール通知: 既定OFF、オンを保存して再読み込み、オフへ戻す',async({page},info)=>{
+  await signIn(page,`notify-${info.project.name}-${Date.now()}@example.test`);
+  const toggle=page.getByRole('checkbox',{name:'期限のリマインダーをメールで受け取る'});
+  await expect(toggle).toBeEnabled();await expect(toggle).not.toBeChecked();
+  await toggle.click();await expect(page.getByRole('status').filter({hasText:'メール通知をオンにしました'})).toBeVisible();
+  await page.reload();await expect(toggle).toBeChecked();
+  await toggle.click();await expect(page.getByRole('status').filter({hasText:'メール通知をオフにしました'})).toBeVisible();
+  await page.reload();await expect(toggle).not.toBeChecked();
+});
