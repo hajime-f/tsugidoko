@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { after, before, test } from 'node:test';
 import { initializeTestEnvironment, assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
-import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp, writeBatch, deleteField } from 'firebase/firestore';
 let env, alice, bob, anon;
 const application = () => ({ company:'テスト株式会社',role:'',source:'',url:'',stage:'検討中',endReason:'',salary:'',location:'',workStyle:'',positives:'',concerns:'',notes:'',createdAt:serverTimestamp(),updatedAt:serverTimestamp() });
 const task = () => ({applicationId:'a',title:'日程を返信する',dueDate:'2028-02-29',done:false,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
@@ -65,5 +65,44 @@ test('廃止した通知データとサーバー用の取得制限はクライ�
     await assertFails(setDoc(ref(alice),{enabled:true}));
     await assertFails(getDoc(ref(bob)));await assertFails(getDoc(ref(anon)));
     await assertFails(getDoc(ref(alice)));
+  }
+});
+
+const historyRef = (db, id) => doc(db, 'users/alice/applications/history/statusHistory', id);
+const event = (fromStatus, toStatus, beforeStage=fromStatus, beforeEndReason='', kind='change', revertsId='') => ({fromStatus,toStatus,beforeStage,beforeEndReason,kind,revertsId,createdAt:serverTimestamp()});
+test('選考履歴は親と同時に追記し、偽造・改変・削除・過去への巻き戻しを拒否',async()=>{
+  const ref=appRef(alice,'history'); await assertSucceeds(setDoc(ref,application()));
+  let batch=writeBatch(alice);batch.update(ref,{stage:'一次面接',statusEventId:'first',updatedAt:serverTimestamp()});batch.set(historyRef(alice,'first'),event('検討中','一次面接'));await assertSucceeds(batch.commit());
+  await assertSucceeds(getDoc(historyRef(alice,'first')));
+  for(const db of [bob,anon]) {await assertFails(getDoc(historyRef(db,'first')));await assertFails(setDoc(historyRef(db,'other'),event('一次面接','最終面接')));}
+  await assertFails(updateDoc(historyRef(alice,'first'),{toStatus:'内定'}));await assertFails(deleteDoc(historyRef(alice,'first')));
+  await assertFails(setDoc(historyRef(alice,'fake'),event('一次面接','最終面接')));
+  await assertFails(updateDoc(ref,{stage:'最終面接',updatedAt:serverTimestamp()}));
+  await assertFails(updateDoc(ref,{statusEventId:deleteField(),updatedAt:serverTimestamp()}));
+  batch=writeBatch(alice);batch.update(ref,{stage:'最終面接',statusEventId:'second',updatedAt:serverTimestamp()});batch.set(historyRef(alice,'second'),event('一次面接','最終面接'));await assertSucceeds(batch.commit());
+  await assertFails(updateDoc(ref,{stage:'一次面接',statusEventId:'first',updatedAt:serverTimestamp()}));
+  batch=writeBatch(alice);batch.update(ref,{stage:'検討中',statusEventId:'bad-undo',updatedAt:serverTimestamp()});batch.set(historyRef(alice,'bad-undo'),event('最終面接','検討中','最終面接','','undo','first'));await assertFails(batch.commit());
+  batch=writeBatch(alice);batch.update(ref,{stage:'一次面接',statusEventId:'undo',updatedAt:serverTimestamp()});batch.set(historyRef(alice,'undo'),event('最終面接','一次面接','最終面接','','undo','second'));await assertSucceeds(batch.commit());
+});
+const interview = () => ({title:'一次面接',date:'2028-02-29',interviewer:'担当者',notes:'話したこと',concerns:'',nextQuestions:'質問',revision:1,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
+test('面接メモの本人限定・親存在・日付・長さ・リビジョンを検証',async()=>{
+  const ref=db=>doc(db,'users/alice/applications/a/interviews/i');
+  await assertSucceeds(setDoc(ref(alice),interview()));await assertSucceeds(getDoc(ref(alice)));
+  await assertSucceeds(updateDoc(ref(alice),{notes:'更新',revision:2,updatedAt:serverTimestamp()}));
+  await assertFails(updateDoc(ref(alice),{notes:'競合',revision:2,updatedAt:serverTimestamp()}));
+  for(const db of [bob,anon]) {await assertFails(getDoc(ref(db)));await assertFails(setDoc(ref(db),interview()));}
+  for(const change of [{date:'2026-02-29'},{notes:'x'.repeat(5001)},{revision:0},{unexpected:true}])await assertFails(setDoc(doc(alice,'users/alice/applications/a/interviews/invalid'),{...interview(),...change}));
+  await assertFails(setDoc(doc(alice,'users/alice/applications/missing/interviews/i'),interview()));
+});
+test('職務経歴書は本人だけが読め、クライアントからの作成・更新・削除を拒否',async()=>{
+  const path='users/alice/resumes/draft';
+  await env.withSecurityRulesDisabled(async context=>{await setDoc(doc(context.firestore(),path),{title:'書類',submitted:false});});
+  await assertSucceeds(getDoc(doc(alice,path)));
+  await assertSucceeds(getDocs(collection(alice,'users/alice/resumes')));
+  for(const db of [alice,bob,anon]) {
+    if(db!==alice)await assertFails(getDoc(doc(db,path)));
+    await assertFails(setDoc(doc(db,'users/alice/resumes/new'),{title:'書類'}));
+    await assertFails(updateDoc(doc(db,path),{title:'更新'}));
+    await assertFails(deleteDoc(doc(db,path)));
   }
 });

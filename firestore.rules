@@ -9,8 +9,9 @@ service cloud.firestore {
     }
     function application(d) {
       return d.keys().hasAll(['company','role','source','url','stage','endReason','salary','location','workStyle','positives','concerns','notes','createdAt','updatedAt'])
-        && d.keys().hasOnly(['company','role','source','url','stage','endReason','salary','location','workStyle','positives','concerns','notes','createdAt','updatedAt','archived'])
+        && d.keys().hasOnly(['company','role','source','url','stage','endReason','salary','location','workStyle','positives','concerns','notes','createdAt','updatedAt','archived','statusEventId'])
         && (!('archived' in d) || d.archived is bool)
+        && (!('statusEventId' in d) || (text(d, 'statusEventId', 128) && d.statusEventId.matches('[^/]+')))
         && text(d, 'company', 120) && d.company.matches('.*[^\\s].*')
         && text(d, 'role', 120) && text(d, 'source', 120)
         && text(d, 'url', 2000) && (d.url == '' || d.url.matches('https?://[^\\s]+'))
@@ -38,9 +39,65 @@ service cloud.firestore {
       let leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
       return day <= (month == 2 ? (leap ? 29 : 28) : (month in [4, 6, 9, 11] ? 30 : 31));
     }
+    function status(d) { return d.endReason != '' ? d.endReason : d.stage; }
+    function statusValue(value) { return value in ['検討中','応募済み','カジュアル面談','書類選考','一次面接','二次面接','最終面接','内定','入社決定','辞退','不採用','募集終了']; }
+    function historyLink(uid, id, d) {
+      return !('statusEventId' in d)
+        ? (resource == null || !('statusEventId' in resource.data))
+        : historyPointer(uid, id, d);
+    }
+    function historyPointer(uid, id, d) {
+      let event = getAfter(/databases/$(database)/documents/users/$(uid)/applications/$(id)/statusHistory/$(d.statusEventId)).data;
+      return resource != null && event.toStatus == status(d)
+        && (('statusEventId' in resource.data) && resource.data.statusEventId == d.statusEventId
+          ? status(resource.data) == status(d)
+          : event.createdAt == request.time && event.fromStatus == status(resource.data));
+    }
+    function history(uid, id, eventId, d) {
+      let before = get(/databases/$(database)/documents/users/$(uid)/applications/$(id)).data;
+      let after = getAfter(/databases/$(database)/documents/users/$(uid)/applications/$(id)).data;
+      return d.keys().hasAll(['fromStatus','toStatus','beforeStage','beforeEndReason','kind','revertsId','createdAt'])
+        && d.keys().hasOnly(['fromStatus','toStatus','beforeStage','beforeEndReason','kind','revertsId','createdAt'])
+        && statusValue(d.fromStatus) && statusValue(d.toStatus) && d.fromStatus != d.toStatus
+        && d.fromStatus == status(before) && d.toStatus == status(after)
+        && d.beforeStage == before.stage && d.beforeEndReason == before.endReason
+        && after.statusEventId == eventId && after.updatedAt == request.time && d.createdAt == request.time
+        && ((d.kind == 'change' && d.revertsId == '') || (d.kind == 'undo' && undoHistory(uid, id, before, after, d)));
+    }
+    function undoHistory(uid, id, before, after, d) {
+      let original = get(/databases/$(database)/documents/users/$(uid)/applications/$(id)/statusHistory/$(d.revertsId)).data;
+      return before.statusEventId == d.revertsId && original.kind == 'change'
+        && d.toStatus == original.fromStatus && d.fromStatus == original.toStatus
+        && after.stage == original.beforeStage && after.endReason == original.beforeEndReason;
+    }
+    function interview(d) {
+      return d.keys().hasAll(['title','date','interviewer','notes','concerns','nextQuestions','revision','createdAt','updatedAt'])
+        && d.keys().hasOnly(['title','date','interviewer','notes','concerns','nextQuestions','revision','createdAt','updatedAt'])
+        && text(d, 'title', 120) && text(d, 'interviewer', 120)
+        && text(d, 'notes', 5000) && text(d, 'concerns', 5000) && text(d, 'nextQuestions', 5000)
+        && (d.title.size() + d.notes.size() + d.concerns.size() + d.nextQuestions.size() > 0)
+        && text(d, 'date', 10) && (d.date == '' || (d.date.matches('(20[0-9]{2}|2100)-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])') && calendarDate(d.date)))
+        && revision(d) && timestamps(d);
+    }
+    function revision(d) { return d.revision is int && (resource == null ? d.revision == 1 : d.revision == resource.data.revision + 1); }
+    match /users/{uid}/applications/{id}/statusHistory/{eventId} {
+      allow read: if owner(uid);
+      allow create: if owner(uid) && history(uid, id, eventId, request.resource.data);
+      allow update, delete: if false;
+    }
+    match /users/{uid}/applications/{id}/interviews/{interviewId} {
+      allow read: if owner(uid);
+      allow create, update: if owner(uid) && exists(/databases/$(database)/documents/users/$(uid)/applications/$(id)) && interview(request.resource.data);
+      allow delete: if false;
+    }
+    match /users/{uid}/resumes/{resumeId} {
+      allow read: if owner(uid);
+      // The authenticated API validates ten careers and protects submitted versions.
+      allow write: if false;
+    }
     match /users/{uid}/applications/{id} {
       allow read: if owner(uid);
-      allow create, update: if owner(uid) && application(request.resource.data);
+      allow create, update: if owner(uid) && application(request.resource.data) && historyLink(uid, id, request.resource.data);
       // Ending a selection preserves its records. Permanent deletion is not exposed yet.
       allow delete: if false;
     }

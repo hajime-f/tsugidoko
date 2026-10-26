@@ -131,7 +131,7 @@ test('選考状況: 旧アーカイブも表示し、終了・進行中に移動
   const apps=await page.request.get(root,{headers:{Authorization:'Bearer owner'}});
   expect(apps.ok()).toBe(true);
   const name=(await apps.json()).documents[0].name;
-  const updated=await page.request.patch(`http://127.0.0.1:8180/v1/${name}?updateMask.fieldPaths=archived&updateMask.fieldPaths=notes&updateMask.fieldPaths=stage`,{headers:{Authorization:'Bearer owner'},data:{fields:{archived:{booleanValue:true},notes:{stringValue:'以前の面接メモ'},stage:{stringValue:'内定'}}}});
+  const updated=await page.request.patch(`http://127.0.0.1:8180/v1/${name}?updateMask.fieldPaths=archived&updateMask.fieldPaths=notes&updateMask.fieldPaths=stage&updateMask.fieldPaths=statusEventId`,{headers:{Authorization:'Bearer owner'},data:{fields:{archived:{booleanValue:true},notes:{stringValue:'以前の面接メモ'},stage:{stringValue:'内定'}}}});
   expect(updated.ok()).toBe(true);
   await page.reload();
   await expect(page.getByRole('button',{name:'保管テスト社',exact:true})).toBeVisible();

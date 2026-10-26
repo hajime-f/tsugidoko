@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import * as Dialog from "@radix-ui/react-dialog";
-import { ArrowUpRight, Building2, ChevronRight, LayoutDashboard, CalendarDays, Columns3, LoaderCircle, LogOut, ShieldCheck, UserRound, X } from "lucide-react";
+import { ArrowUpRight, Building2, ChevronRight, LayoutDashboard, FileText, CalendarDays, Columns3, LoaderCircle, LogOut, ShieldCheck, UserRound, X } from "lucide-react";
 import { ApplicationWorkspace } from "./application-workspace";
 import { useAuth } from "@/components/auth/auth-provider";
 
@@ -58,7 +58,7 @@ export function MemberHome() {
     </header>
     <div className="member-layout">
       <aside className="member-sidebar">
-        <nav aria-label="メインメニュー"><Link href="/home" aria-current="page" className="member-nav-active"><LayoutDashboard size={19} aria-hidden="true" />ホーム</Link><a href="#actions"><CalendarDays size={19} aria-hidden="true" />次にやること</a><a href="#comparison"><Columns3 size={19} aria-hidden="true" />比較</a><a href="#applications"><Building2 size={19} aria-hidden="true" />応募先</a><button onClick={event => openAccount(event.currentTarget)}><UserRound size={19} aria-hidden="true" />アカウント</button></nav>
+        <nav aria-label="メインメニュー"><Link href="/home" aria-current="page" className="member-nav-active"><LayoutDashboard size={19} aria-hidden="true" />ホーム</Link><a href="#actions"><CalendarDays size={19} aria-hidden="true" />次にやること</a><a href="#comparison"><Columns3 size={19} aria-hidden="true" />比較</a><a href="#applications"><Building2 size={19} aria-hidden="true" />応募先</a><a href="#resumes"><FileText size={19} aria-hidden="true" />職務経歴書</a><button onClick={event => openAccount(event.currentTarget)}><UserRound size={19} aria-hidden="true" />アカウント</button></nav>
         <div className="sidebar-note"><span className="sidebar-symbol"><ArrowUpRight size={24} /></span><p>次は、どこへ行こう。</p><span>焦らず、自分らしい一歩を。</span></div>
         <Link href="/" className="member-site-link">サービスの紹介<ArrowUpRight size={14} /></Link>
       </aside>

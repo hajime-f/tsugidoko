@@ -31,7 +31,7 @@ export const applicationSchema = z.object({
   positives: memo, concerns: memo, notes: memo,
 });
 export type ApplicationInput = z.infer<typeof applicationSchema>;
-export type Application = ApplicationInput & { id: string; createdAt: number; updatedAt: number };
+export type Application = ApplicationInput & { id: string; createdAt: number; updatedAt: number; statusEventId?: string };
 export const emptyApplication: ApplicationInput = { company: "", role: "", source: "", url: "", status: "検討中", salary: "", location: "", workStyle: "", positives: "", concerns: "", notes: "" };
 
 export function localDate(date = new Date()) {

@@ -46,7 +46,7 @@ export async function authenticated(request: Request) {
 export function failure(error: unknown) {
   return Response.json({ error: error instanceof HttpError ? error.message : "処理を完了できませんでした。時間をおいてお試しください。" }, { status: error instanceof HttpError ? error.status : 500 });
 }
-export async function smallJson(request: Request) {
+export async function smallJson(request: Request, maxBytes = 8192) {
   const reader = request.body?.getReader();
   if (!reader) throw new HttpError(400, "入力を確認してください。");
   let value = ""; let size = 0; const decoder = new TextDecoder();
@@ -54,7 +54,7 @@ export async function smallJson(request: Request) {
     while (true) {
       const result = await reader.read(); if (result.done) break;
       size += result.value.byteLength;
-      if (size > 8192) throw new HttpError(413, "入力が長すぎます。");
+      if (size > maxBytes) throw new HttpError(413, "入力が長すぎます。");
       value += decoder.decode(result.value, { stream: true });
     }
     return JSON.parse(value + decoder.decode()) as unknown;

@@ -46,7 +46,10 @@ export function useWorkspace(uid: string) {
   async function write(action: () => Promise<unknown>) {
     if (getClientAuth().currentUser?.uid !== uid) throw new Error("ログイン状態が変わりました。再読み込みしてください。");
     if (!navigator.onLine) throw new Error("オフラインです。接続が戻ってから保存してください。");
-    try { await action(); } catch (cause) { throw new Error(message(cause, true)); }
+    try { await action(); } catch (cause) {
+      if (cause instanceof Error && cause.message.startsWith("別の変更")) throw cause;
+      throw new Error(message(cause, true));
+    }
   }
   const reference = (kind: "applications" | "tasks", id: string) => doc(getClientDatabase(), "users", uid, kind, id);
   return {
@@ -63,7 +66,23 @@ export function useWorkspace(uid: string) {
         if (!saved.exists()) throw new Error("Application not found");
         const current = saved.data();
         const selection = status === undefined ? {} : selectionForStorage(status, current.stage);
-        transaction.update(ref, { ...fields, ...selection, updatedAt: serverTimestamp() });
+        const fromStatus = getApplicationStatus(current.stage, current.endReason);
+        const event = status !== undefined && status !== fromStatus ? doc(collection(ref, "statusHistory")) : null;
+        if (event) transaction.set(event, { fromStatus, toStatus: status, beforeStage: current.stage, beforeEndReason: current.endReason, kind: "change", revertsId: "", createdAt: serverTimestamp() });
+        transaction.update(ref, { ...fields, ...selection, ...(event ? { statusEventId: event.id } : {}), updatedAt: serverTimestamp() });
+      });
+    }),
+    undoApplicationStatus: (id: string, eventId: string) => write(async () => {
+      const ref = reference("applications", id);
+      await runTransaction(getClientDatabase(), async transaction => {
+        const current = await transaction.get(ref);
+        const event = await transaction.get(doc(ref, "statusHistory", eventId));
+        if (!current.exists() || !event.exists()) throw new Error("変更が見つかりません。");
+        const data = current.data(); const previous = event.data();
+        if (data.statusEventId !== eventId || previous.kind !== "change" || getApplicationStatus(data.stage, data.endReason) !== previous.toStatus) throw new Error("別の変更があるため取り消せません。最新の履歴を確認してください。");
+        const undo = doc(collection(ref, "statusHistory"));
+        transaction.set(undo, { fromStatus: previous.toStatus, toStatus: previous.fromStatus, beforeStage: data.stage, beforeEndReason: data.endReason, kind: "undo", revertsId: eventId, createdAt: serverTimestamp() });
+        transaction.update(ref, { stage: previous.beforeStage, endReason: previous.beforeEndReason, statusEventId: undo.id, updatedAt: serverTimestamp() });
       });
     }),
     addTask: (value: TaskInput) => write(() => addDoc(collection(getClientDatabase(), "users", uid, "tasks"), { ...taskSchema.parse(value), done: false, createdAt: serverTimestamp(), updatedAt: serverTimestamp() })),

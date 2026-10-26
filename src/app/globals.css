@@ -480,3 +480,57 @@ h2 { font-size: 36px; line-height: 1.5; font-weight: 750; letter-spacing: -.035e
 .job-import > .button { margin-top: 12px; padding: 12px; font-size: 14px; }
 .job-candidate { margin-top: 14px; padding: 14px; background: white; border: 1px solid #ccd8c8; }
 .job-candidate .button { margin-top: 10px; padding: 10px; font-size: 13px; }
+
+/* Application records and printable career documents */
+.application-records { margin-top: 32px; border-top: 1px solid #dce3d6; padding-top: 24px; }
+.application-records section + section { margin-top: 28px; }
+.application-records h3, .career-heading h3 { font-size: 18px; }
+.application-records .button, .resume-fields .button, .resume-list .button, .csv-export .button { font-size: 13px; padding: 10px 14px; }
+.status-history { margin: 18px 0; padding-left: 22px; max-height: 280px; overflow-y: auto; }
+.status-history li { margin-block: 12px; }
+.status-history time { display: block; color: #626a61; font-size: 12px; }
+.status-history span { font-size: 14px; }
+.interview-list, .resume-list { list-style: none; padding: 0; margin: 16px 0 0; }
+.interview-list li { padding: 18px 0; border-bottom: 1px solid #e1e6df; }
+.interview-list p { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; margin-block: 10px; }
+.career-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.career-heading .button, .application-records .button { width: auto; flex-shrink: 0; }
+.record-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+.record-actions > button:not(.button) { background: #edf2e9; padding: 10px 14px; border-radius: 4px; }
+.csv-export { padding: 4px 0; }
+.csv-export > p { font-size: 13px; color: #536052; }
+.resume-list li { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 18px 0; border-bottom: 1px solid #e1e6df; }
+.resume-list h3 { font-size: 16px; overflow-wrap: anywhere; }
+.resume-list p { color: #536052; font-size: 13px; margin-top: 6px; }
+.resume-list .button { flex-shrink: 0; }
+.resume-dialog { max-width: 1280px; width: calc(100vw - 40px); max-height: 94svh; overflow-y: auto; }
+.resume-editor-layout { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 28px; margin-top: 24px; }
+.resume-editor-layout.resume-readonly { display: block; }
+.resume-fields { min-width: 0; border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 20px; }
+.career-fields { display: grid; gap: 16px; border: 1px solid #d5ddcf; border-radius: 5px; padding: 18px; min-width: 0; }
+.career-fields legend { padding-inline: 6px; font-size: 14px; }
+.career-months { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.resume-preview { min-width: 0; padding: 24px; background: #f1f3ef; }
+.resume-paper { background: white; padding: 28px; font-size: 14px; line-height: 1.8; color: #111; }
+.resume-paper h2 { text-align: center; font-size: 24px; margin-bottom: 12px; }
+.resume-paper h3 { font-size: 17px; border-bottom: 1px solid #333; padding-bottom: 5px; margin: 24px 0 12px; }
+.resume-paper h4 { font-size: 16px; margin-top: 18px; }
+.resume-paper h5 { font-size: 14px; margin-top: 12px; }
+.resume-paper p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.resume-name, .resume-date { text-align: right; }
+.resume-period { color: #444; font-size: 13px; }
+.resume-actions { flex-wrap: wrap; }
+.resume-actions .button { width: auto; flex: 1 1 160px; }
+.resume-print-root { display: none; }
+@media (max-width: 900px) { .resume-editor-layout { grid-template-columns: minmax(0,1fr); } .resume-preview { padding: 10px; } .resume-paper { padding: 18px; } }
+@media print {
+  @page { size: A4; margin: 18mm; }
+  html:has(.resume-print-root), body:has(> .resume-print-root) { background: white !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; height: auto !important; }
+  body:has(> .resume-print-root) > * { display: none !important; }
+  body > .resume-print-root { display: block !important; }
+  .resume-paper { padding: 0; font-size: 11pt; line-height: 1.6; }
+  .resume-paper h2 { font-size: 20pt; }
+  .resume-paper h3, .resume-paper h4, .resume-paper h5 { break-after: avoid; }
+  .resume-career { break-inside: avoid; }
+  .resume-paper p { orphans: 3; widows: 3; }
+}

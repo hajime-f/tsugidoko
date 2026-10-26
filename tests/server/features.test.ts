@@ -69,3 +69,45 @@ test('URL取得APIの回数制限はユーザーごとにFirestoreで保持',asy
     }
   } finally {resolver.mock.restore();syncBuiltinESMExports();}
 });
+
+// Resume writes use the authenticated API; client Rules allow reads only.
+import {POST as saveResume} from '../../src/app/api/resumes/route';
+import {emptyResume,emptyCareer} from '../../src/lib/resumes';
+const resumeRequest=(token:string,body:unknown)=>new Request('http://localhost/api/resumes',{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify(body)});
+test('職務経歴書API: 未認証・偽トークン・過大JSONを拒否',async()=>{
+  assert.equal((await saveResume(new Request('http://localhost/api/resumes',{method:'POST'}))).status,401);
+  assert.equal((await saveResume(resumeRequest('invalid',{}))).status,401);
+  const token=await userToken('resume-size');
+  assert.equal((await saveResume(resumeRequest(token,{data:'x'.repeat(768*1024)}))).status,413);
+  assert.equal((await saveResume(new Request('http://localhost/api/resumes',{method:'POST',headers:{Authorization:`Bearer ${token}`},body:'{invalid'}))).status,400);
+});
+test('職務経歴書API: 最大10社の作成・編集、他人の文書・競合・不正値を拒否',async()=>{
+  const token=await userToken('resume-owner'), other=await userToken('resume-other');
+  const value={...emptyResume,fullName:'氏名',documentDate:'2026-10-26',summary:'要約',careers:Array.from({length:10},()=>({...emptyCareer,company:'会社',startMonth:'2020-04',endMonth:'2026-01',role:'担当',duties:'業務\n'.repeat(1000),achievements:'成果'}))};
+  const created=await saveResume(resumeRequest(token,{value,submitted:false}));assert.equal(created.status,200);
+  const {id}=await created.json();
+  const ref=db.doc(`users/resume-owner/resumes/${id}`);
+  assert.equal((await ref.get()).get('careers').length,10);
+  const responses=await Promise.all(['編集A','編集B'].map(summary=>saveResume(resumeRequest(token,{value:{...value,summary},id,revision:1,submitted:false}))));
+  assert.deepEqual(responses.map(response=>response.status).sort(),[200,409]);
+  assert.equal((await ref.get()).get('revision'),2);
+  assert.equal((await saveResume(resumeRequest(other,{value,id,revision:2,submitted:false}))).status,409);
+  assert.equal((await saveResume(resumeRequest(token,{value,submitted:false,uid:'resume-other'}))).status,400);
+  for(const change of [{careers:Array(11).fill(emptyCareer)},{careers:[{...emptyCareer,company:123}]},{careers:[{...emptyCareer,startMonth:'2020-04',endMonth:'2019-04'}]},{careers:[{...emptyCareer,current:true,endMonth:'2026-01'}]},{careers:[{...emptyCareer,duties:'x'.repeat(5001)}]},{documentDate:'2026-02-30'},{applicationId:'missing'},{applicationId:'../other'},{title:''}]) {
+    assert.equal((await saveResume(resumeRequest(token,{value:{...value,...change},submitted:false}))).status,400,JSON.stringify(change).slice(0,100));
+  }
+});
+test('職務経歴書API: 提出版の不変性と本人の応募先、下書き複製の独立性',async()=>{
+  const token=await userToken('resume-submit');
+  await db.doc('users/resume-submit/applications/a').set({company:'応募先'});
+  await db.doc('users/resume-other/applications/other').set({company:'別人の応募先'});
+  assert.equal((await saveResume(resumeRequest(token,{value:emptyResume,submitted:true}))).status,400);
+  assert.equal((await saveResume(resumeRequest(token,{value:{...emptyResume,applicationId:'other'},submitted:true}))).status,400);
+  const value={...emptyResume,applicationId:'a',summary:'提出した内容',careers:Array.from({length:10},()=>({...emptyCareer,company:'会社',current:true,startMonth:'2020-04'}))};
+  const response=await saveResume(resumeRequest(token,{value,submitted:true}));assert.equal(response.status,200);
+  const {id}=await response.json();
+  for(const submitted of [false,true])assert.equal((await saveResume(resumeRequest(token,{value:{...value,summary:'改変'},id,revision:1,submitted}))).status,409);
+  const copied=await saveResume(resumeRequest(token,{value:{...value,summary:'複製した内容'},submitted:false}));assert.equal(copied.status,200);
+  assert.equal((await db.doc(`users/resume-submit/resumes/${id}`).get()).get('summary'),'提出した内容');
+  assert.equal((await db.doc(`users/resume-submit/resumes/${(await copied.json()).id}`).get()).get('submitted'),false);
+});

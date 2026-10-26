@@ -1,13 +1,15 @@
 import { existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 const rules = process.argv[2] === 'rules';
+const dev = process.argv[2] === 'dev';
 const server = process.argv[2] === 'server';
 const env = { ...process.env, E2E_AUTH_EMULATOR: '1' };
+if (dev) env.NEXT_PUBLIC_AUTH_EMULATOR_URL = 'http://127.0.0.1:9199';
 const homebrewJava = '/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home';
 if (!env.JAVA_HOME && existsSync(homebrewJava)) env.JAVA_HOME = homebrewJava;
 if (env.JAVA_HOME) env.PATH = `${env.JAVA_HOME}/bin:${env.PATH}`;
 const quote = value => "'" + value.replaceAll("'", "'\\''") + "'";
-const command = rules ? 'node --test tests/rules/firestore.test.mjs' : server ? 'npx tsx --test tests/server/*.test.ts' : `npx playwright test ${process.argv.slice(2).map(quote).join(' ')}`;
+const command = dev ? 'npm run dev -- --port 3101' : rules ? 'node --test tests/rules/firestore.test.mjs' : server ? 'npx tsx --test tests/server/*.test.ts' : `npx playwright test ${process.argv.slice(2).map(quote).join(' ')}`;
 const result = spawnSync('firebase', ['emulators:exec','--only',rules ? 'firestore' : 'auth,firestore','--project','demo-tsugidoko',command], { env, stdio:'inherit' });
 if (result.error) console.error(result.error.message);
 process.exit(result.status ?? 1);

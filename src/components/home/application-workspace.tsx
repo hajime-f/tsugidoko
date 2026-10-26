@@ -10,6 +10,9 @@ import { useWorkspace, type Workspace } from "./use-workspace";
 import { TaskBoard } from "./task-board";
 import { JobImport } from "./job-import";
 import { ComparisonBoard } from "./comparison-board";
+import { ResumeBoard } from "./resume-board";
+import { ApplicationRecords } from "./application-records";
+import { CsvExport } from "./csv-export";
 
 function ApplicationEditor({ application, workspace, close }: { application: Application | null; workspace: Workspace; close: () => void }) {
   const id = useId();
@@ -96,10 +99,13 @@ export function ApplicationWorkspace({ uid }: { uid: string }) {
         </tr>)}</tbody></table></div> : <div className="workspace-empty"><h3>{workspace.applications.length ? "条件に合う応募先はありません" : "最初の応募先を登録しましょう"}</h3><p>{workspace.applications.length ? "表示や検索条件を変えて確認できます。" : "気になっている会社でも大丈夫。会社名だけで始められます。"}</p></div>}
       </>}
     </section>
+    <CsvExport uid={uid} workspace={workspace} />
     <ComparisonBoard workspace={workspace} edit={edit} />
+    <ResumeBoard uid={uid} applications={workspace.applications} />
     <Dialog.Root open={editing !== undefined} onOpenChange={open => { if (!open) setEditing(undefined); }}><Dialog.Portal><Dialog.Overlay className="dialog-overlay" /><Dialog.Content className="dialog-content workspace-dialog" onCloseAutoFocus={event => { if (opener.current?.isConnected) { event.preventDefault(); opener.current.focus(); } }}>
       <Dialog.Close className="dialog-close" aria-label="閉じる"><X size={20} /></Dialog.Close><Dialog.Title>{editing ? "応募先の詳細" : "応募先を登録"}</Dialog.Title><Dialog.Description>{editing ? "必要な情報を少しずつ残せます。" : "まずは会社名を入力してください。"}</Dialog.Description>
       {editing !== undefined && <ApplicationEditor key={editing?.id ?? "new"} application={editing} workspace={workspace} close={() => setEditing(undefined)} />}
+      {editing && <ApplicationRecords key={`records-${editing.id}`} uid={uid} application={workspace.applications.find(app => app.id === editing.id) ?? editing} workspace={workspace} />}
     </Dialog.Content></Dialog.Portal></Dialog.Root>
   </div>;
 }

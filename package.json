@@ -11,7 +11,8 @@
     "test:auth": "node scripts/test-emulators.mjs",
     "test:rules": "node scripts/test-emulators.mjs rules",
     "test:unit": "node --experimental-strip-types --test tests/unit/*.test.mjs",
-    "test:server": "node scripts/test-emulators.mjs server"
+    "test:server": "node scripts/test-emulators.mjs server",
+    "dev:demo": "node scripts/test-emulators.mjs dev"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.2",
