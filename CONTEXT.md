@@ -527,3 +527,16 @@ Claude からは一括登録を必須とする提案があったが、相談の�
 - 前節のRules承認待ちは解消。本人限定の履歴・面接メモ・職務経歴書の読取ルールと履歴整合性を適用済み。職務経歴書のクライアント直接書込は禁止のまま、認証付きAPIで保存する。
 - 既に読み込みエラーが出た画面はFirestore購読が停止しているため、ページ再読み込みが必要。通常の開発URLは http://127.0.0.1:3100/home 。
 - 今回はRulesだけを適用。App Hostingの画面/API、索引、ユーザーデータは変更せず、commit/pushもしていない。実Googleアカウントでの書類作成完了は自動確認していない。
+
+## 4機能の本番公開（2026年10月27日）
+
+藤田さんの `commit & push & deploy` 指示により、4機能の未公開状態を解消した。これを最新の公開状況として扱う。
+
+- 実装コミット `cd0f69f`（選考履歴・面接メモ・CSV出力・職務経歴書を追加）をGitHub mainへpush済み。コミット前の秘密情報パターン検査は0件、push後のGitHub未解決secret scanning警告も0件。
+- ローカル本番ビルド成功。機能検証は前節のunit6・Rules10・server9・workspace PC5・新機能3画面9件とPDF検証を使用。実装変更がないため、同じ試験の一式再実行はしていない。
+- `firebase deploy --only apphosting:tsugidoko --project tsugidoko-prod-hajime-f` 成功。Cloud Build `80571d8c-f956-4e8a-8a83-661f4284fd06` SUCCESS、Cloud Run `tsugidoko-build-2026-10-26-001` Ready、トラフィック100%。リビジョン名の日付はUTCで、本節はJST。
+- Firestore Rulesは前節で承認・適用済み。今回、Rules/索引/ユーザーデータを変更していない。
+- 本番Chrome確認: トップ200、新しい保存対象説明、noindex、Googleログイン画面へ遷移、未認証/homeからトップへ転送、/api/resumesと/api/job-previewの未認証POSTは401、ページJavaScriptエラー0件。公開JSにFirebase Webキーがあり、開発用キーが混入していないことを値非表示で確認。
+- 実Googleアカウントでの認証完了・本番への職務経歴書保存は自動実行していない。本人限定の保存・競合・提出版不変・CSV・PDFはEmulatorで検証済み。
+- 本番URL: https://tsugidoko--tsugidoko-prod-hajime-f.asia-east1.hosted.app
+- ローカル通常環境: http://127.0.0.1:3100/home 。Emulator確認環境は `npm run dev:demo` で3101。E2EとEmulatorのポートを共用するので同時起動しない。
