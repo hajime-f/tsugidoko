@@ -558,3 +558,15 @@ Claude からは一括登録を必須とする提案があったが、相談の�
 - Claude Codeの設計・実装・UI/文書レビューを受けた。保管期限に関する指摘を、再書き込み防止を維持した正確な文言と運用へ反映済み。
 
 検証結果: unit6件、Rules13件、server15件、既存認証・応募管理・履歴/メモ/CSV/職務経歴書のdesktop19件、新機能desktop/mobile8件を確認。計61件成功、型チェック・本番ビルド成功。新機能E2EのalertロケーターがNextのルート通知にも一致する点をフォーム内へ限定して修正。既存URL取得の回数制限テストが分境界で揺れる点は時刻を固定し、翌分に制限が解除される検証も追加した。PC/mobileの公開文書表示と横はみ出しなしを確認。本番の実行サービスアカウントにはFirebase Authのget/update/delete権限があり、Cloud Runのタイムアウト300秒も確認済み。
+
+### 利用規約・プライバシー・削除機能の本番公開
+
+2026年10月27日、実装コミット `bcb28b6` をmainへpushし、Firestore Rules/indexesとApp Hostingを公開した。
+- TTL: accountLifecycle.expiresAt、supportRequests.expiresAt、contactLimits.expiresAtがすべてACTIVE。
+- Cloud Build `fa30f712-4ad1-491b-a0cf-96ab12a81ec0` SUCCESS。
+- Cloud Run `tsugidoko-build-2026-10-26-002` がReady、トラフィック100%。リビジョン名の日付はUTC。
+- 本番 `/terms` `/privacy` `/data-deletion` `/contact` が200、見出しとPC横はみ出しなしを確認。未ログインの削除案内・/homeのトップへの転送・Google認証画面への遷移を確認。
+- `/api/account/delete` と `/api/legal-consent` は未認証401。問い合わせの不正入力は400、問い合わせ文書は作成していない。
+- 本番JSに開発用Firebaseキーが混入していないこと、ブラウザのJSエラー0、GitHubの未解決secret-scanning alert0を確認。
+- 実ユーザーの記録や認証アカウントの削除は試験として実行していない。確認済みの本番URL: https://tsugidoko--tsugidoko-prod-hajime-f.asia-east1.hosted.app
+- 問い合わせの確認・返信と、中断した削除管理情報の点検は運営者が手動で行う。詳細はREADMEの運用手順を参照。

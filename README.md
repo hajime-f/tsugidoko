@@ -225,3 +225,5 @@ npm run build
 検証: `npm run test:rules`、`npm run test:server`、`npm run test:auth -- tests/e2e/legal.spec.ts`。同意追加に伴う既存認証・履歴・CSV・職務経歴書の回帰も確認します。
 
 文書作成時の参照: [個人情報保護委員会・通則編](https://www.ppc.go.jp/personalinfo/legal/guidelines_tsusoku/)、[個人情報保護法Q&A](https://www.ppc.go.jp/personalinfo/faq/APPI_QA/)、[消費者庁・消費者契約法](https://www.caa.go.jp/about_us/about/caa_pamphlet/jp_2026_004.html)、[Firebaseのデータ保護](https://firebase.google.com/support/privacy)、[Firestore TTL](https://firebase.google.com/docs/firestore/ttl)。
+
+2026年10月27日、実装 `bcb28b6` を本番へ公開済みです。Rules反映、TTL3件のACTIVE、Cloud Build成功、新リビジョン `tsugidoko-build-2026-10-26-002` へのトラフィック100%を確認しました。公開4ページ、Google認証画面への遷移、未認証API拒否を本番で確認し、実ユーザーの削除は行っていません。検証61件・型チェック・ビルドが成功し、Claude Codeのレビューを反映済みです。
