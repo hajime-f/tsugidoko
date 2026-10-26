@@ -20,6 +20,8 @@ async function login(page: Page, email: string, name = "テストユーザー", 
   await popup.locator("#sign-in").click();
   await closed;
   await expect(page).toHaveURL(/\/home$/);
+  await page.getByRole("checkbox", {name:"利用規約に同意し、プライバシーポリシーを確認しました"}).check();
+  await page.getByRole("button", {name:"同意して利用を始める"}).click();
 }
 
 test("未ログインでは専用ホームを表示せず、ログインに案内する", async ({ page }) => {

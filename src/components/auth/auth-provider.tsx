@@ -48,6 +48,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  useEffect(() => {
+    const onDeletion = (event: StorageEvent) => {
+      if (event.key !== "tsugidoko-account-deleted" || !event.newValue) return;
+      try {
+        const notice = JSON.parse(event.newValue) as { uid?: string };
+        if (getClientAuth().currentUser?.uid === notice.uid) {
+          void signOut(getClientAuth()).finally(() => window.location.replace("/data-deletion"));
+        }
+      } catch { /* Ignore malformed cross-tab notices. */ }
+    };
+    window.addEventListener("storage", onDeletion);
+    return () => window.removeEventListener("storage", onDeletion);
+  }, []);
+
   async function perform(action: () => Promise<unknown>, kind: "login" | "logout") {
     if (loading || (inProgress.current && !(kind === "login" && inProgress.current === "login"))) return false;
     const currentOperation = ++operation.current;

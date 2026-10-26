@@ -14,6 +14,8 @@ async function signIn(page: Page, email: string) {
   await popup.locator("#display-name-input").fill("応募管理テスト");
   await popup.locator("#sign-in").click();
   await expect(page).toHaveURL(/\/home$/);
+  await page.getByRole("checkbox", {name:"利用規約に同意し、プライバシーポリシーを確認しました"}).check();
+  await page.getByRole("button", {name:"同意して利用を始める"}).click();
   await expect(page.getByRole("button", {name:"応募先を登録",exact:true})).toBeEnabled();
 }
 async function addCompany(page: Page, name: string) {

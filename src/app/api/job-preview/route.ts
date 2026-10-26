@@ -1,3 +1,4 @@
+import { assertAccountActive } from "@/lib/server/account-lifecycle";
 import { FieldValue } from "firebase-admin/firestore";
 import { authenticated, adminServices, failure, HttpError, smallJson } from "@/lib/server/firebase";
 import { extractJobs, fetchJobHtml, publicUrl } from "@/lib/server/job-preview";
@@ -10,6 +11,7 @@ export async function POST(request: Request) {
     try { publicUrl(body.url); } catch { throw new HttpError(400, '公開された http / https の求人URLを指定してください。'); }
     const db = adminServices().db;
     await db.runTransaction(async tx => {
+      await assertAccountActive(tx, user.uid, user.auth_time);
       const ref = db.doc(`users/${user.uid}/serverLimits/jobPreview`); const snap = await tx.get(ref);
       const bucket = Math.floor(Date.now()/60_000); const used = snap.get('bucket') === bucket ? Number(snap.get('count') ?? 0) : 0;
       if (used >= 5) throw new HttpError(429, '取得は1分間に5回までです。少し待ってください。');

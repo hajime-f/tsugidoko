@@ -61,13 +61,18 @@ test('URL取得: DNS固定、転送先の再検証、サイズ・圧縮制限',a
 
 test('URL取得APIの回数制限はユーザーごとにFirestoreで保持',async()=>{
   const token=await userToken('rate-limit-owner');
+  // Keep this test in one rate-limit window even when wall time crosses a minute.
+  let now=Date.now(); const clock=mock.method(Date,'now',()=>now);
   const resolver=mock.method(dns,'lookup',async()=>[{address:'127.0.0.1',family:4}]);syncBuiltinESMExports();
   try {
     for(let i=0;i<6;i++) {
       const response=await preview(new Request('http://localhost/api/job-preview',{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({url:'https://example.test/jobs'})}));
       assert.equal(response.status,i<5?422:429);
     }
-  } finally {resolver.mock.restore();syncBuiltinESMExports();}
+    now+=60_000;
+    const nextMinute=await preview(new Request('http://localhost/api/job-preview',{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({url:'https://example.test/jobs'})}));
+    assert.equal(nextMinute.status,422);
+  } finally {clock.mock.restore();resolver.mock.restore();syncBuiltinESMExports();}
 });
 
 // Resume writes use the authenticated API; client Rules allow reads only.

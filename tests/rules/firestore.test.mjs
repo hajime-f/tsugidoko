@@ -106,3 +106,39 @@ test('職務経歴書は本人だけが読め、クライアントからの作�
     await assertFails(deleteDoc(doc(db,path)));
   }
 });
+
+test('削除中・旧セッションの読書を拒否し、再ログイン後だけ再開できる',async()=>{
+  const uid='lifecycle', old=env.authenticatedContext(uid,{auth_time:100}).firestore(), fresh=env.authenticatedContext(uid,{auth_time:201}).firestore();
+  const path=`users/${uid}/applications/a`, marker=`accountLifecycle/${uid}`;
+  await assertSucceeds(setDoc(doc(old,path),application()));
+  await env.withSecurityRulesDisabled(async context=>{await setDoc(doc(context.firestore(),marker),{state:'deleting',mode:'data',cutoff:200});});
+  for(const db of [old,fresh]) {
+    await assertFails(getDoc(doc(db,path)));await assertFails(getDocs(collection(db,`users/${uid}/applications`)));
+    await assertFails(updateDoc(doc(db,path),{stage:'一次面接',updatedAt:serverTimestamp()}));
+    await assertFails(setDoc(doc(db,`users/${uid}/tasks/new`),task()));
+  }
+  await env.withSecurityRulesDisabled(async context=>{await updateDoc(doc(context.firestore(),marker),{state:'complete'});});
+  await assertFails(getDoc(doc(old,path)));await assertFails(setDoc(doc(old,`users/${uid}/applications/old`),application()));
+  await assertSucceeds(getDoc(doc(fresh,path)));await assertSucceeds(updateDoc(doc(fresh,path),{stage:'一次面接',updatedAt:serverTimestamp()}));
+  await env.withSecurityRulesDisabled(async context=>{await updateDoc(doc(context.firestore(),marker),{mode:'account'});});
+  await assertFails(getDoc(doc(fresh,path)));
+});
+test('オフラインで保留された古い書き込みも削除完了後には復活しない',async()=>{
+  const {disableNetwork,enableNetwork}=await import('firebase/firestore');
+  const uid='offline-delete', db=env.authenticatedContext(uid,{auth_time:100}).firestore();
+  await disableNetwork(db);
+  const pending=assertFails(setDoc(doc(db,`users/${uid}/applications/queued`),application()));
+  await env.withSecurityRulesDisabled(async context=>{await setDoc(doc(context.firestore(),`accountLifecycle/${uid}`),{state:'complete',mode:'data',cutoff:200});});
+  await enableNetwork(db);await pending;
+});
+test('問い合わせ・削除管理・制限値は非公開、同意は本人の読み取りだけ',async()=>{
+  for(const db of [alice,bob,anon])for(const path of ['accountLifecycle/alice','supportRequests/one','contactLimits/global']) {
+    await assertFails(getDoc(doc(db,path)));await assertFails(setDoc(doc(db,path),{state:'complete'}));await assertFails(deleteDoc(doc(db,path)));
+  }
+  await env.withSecurityRulesDisabled(async context=>{await setDoc(doc(context.firestore(),'users/alice/legal/consent'),{version:'2026-10-27'});});
+  await assertSucceeds(getDoc(doc(alice,'users/alice/legal/consent')));
+  for(const db of [alice,bob,anon]) {
+    if(db!==alice)await assertFails(getDoc(doc(db,'users/alice/legal/consent')));
+    await assertFails(setDoc(doc(db,'users/alice/legal/consent'),{version:'fake'}));
+  }
+});

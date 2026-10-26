@@ -1,3 +1,4 @@
+import { assertAccountActive } from "@/lib/server/account-lifecycle";
 import { z } from "zod";
 import { FieldValue } from "firebase-admin/firestore";
 import { resumeSchema } from "@/lib/resumes";
@@ -24,6 +25,7 @@ export async function POST(request: Request) {
     const parent = db.collection("users").doc(user.uid);
     const ref = id ? parent.collection("resumes").doc(id) : parent.collection("resumes").doc();
     await db.runTransaction(async transaction => {
+      await assertAccountActive(transaction, user.uid, user.auth_time);
       const current = id ? await transaction.get(ref) : null;
       if (id && (!current?.exists || current.get("submitted") || current.get("revision") !== revision || submitted)) {
         throw new HttpError(409, "別の画面で更新されているか、編集できない書類です。入力内容を残す場合は「複製して保存」を選んでください。");

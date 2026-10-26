@@ -534,3 +534,55 @@ h2 { font-size: 36px; line-height: 1.5; font-weight: 750; letter-spacing: -.035e
   .resume-career { break-inside: avoid; }
   .resume-paper p { orphans: 3; widows: 3; }
 }
+
+/* Legal information and account data controls */
+.legal-shell { min-height: 100svh; background: #fbfcf9; }
+.legal-header, .legal-footer { max-width: 1180px; margin: auto; padding: 28px 40px; }
+.legal-header { display: flex; justify-content: space-between; align-items: center; gap: 20px; border-bottom: 1px solid #dde3d9; }
+.legal-header > a:last-child { font-size: 14px; text-decoration: underline; text-underline-offset: 4px; }
+.legal-main { max-width: 1000px; margin: auto; padding: 64px 40px 80px; overflow-wrap: anywhere; }
+.legal-main h1 { font-size: clamp(30px,4vw,44px); margin-bottom: 24px; }
+.legal-main h2 { font-size: 23px; margin-bottom: 14px; }
+.legal-main section { margin-top: 38px; }
+.legal-main p, .legal-main ul { margin-block: 16px; line-height: 1.95; }
+.legal-main ul { padding-left: 24px; list-style: disc; }
+.legal-main a:not(.button), .consent-panel a { color: #175b33; text-decoration: underline; text-underline-offset: 4px; }
+.legal-date { color: #5f675c; font-size: 14px; }
+.legal-table-wrap { overflow-x: auto; }
+.legal-main table { border-collapse: collapse; width: 100%; font-size: 14px; background: #fff; }
+.legal-main th, .legal-main td { padding: 16px; border: 1px solid #d9e0d3; text-align: left; vertical-align: top; }
+.legal-main th { background: #edf3e8; }
+.legal-main td:first-child { width: 32%; }
+.legal-links { display: flex; flex-wrap: wrap; gap: 14px 24px; font-size: 13px; padding-block: 18px; }
+.legal-links a { text-decoration: underline; text-underline-offset: 4px; }
+.member-footer { flex-wrap: wrap; }
+.member-footer .legal-links { padding: 0; }
+.legal-footer { border-top: 1px solid #dde3d9; font-size: 13px; color: #536052; }
+.account-delete-link { display: block; color: #92232d; text-decoration: underline; margin-top: 24px; font-size: 14px; }
+.deletion-panel, .consent-panel, .contact-receipt { background: #fff; border: 1px solid #d8e0d2; border-radius: 8px; padding: 32px; }
+.deletion-panel { border-color: #dbc7c7; }
+.deletion-options { padding: 0; border: 0; display: grid; gap: 16px; margin-block: 24px; }
+.deletion-options legend { font-weight: 700; margin-bottom: 12px; }
+.deletion-options label { display: flex; align-items: flex-start; gap: 12px; padding: 18px; border: 1px solid #c9cebf; border-radius: 6px; cursor: pointer; }
+.deletion-options input { margin-top: 6px; flex-shrink: 0; }
+.deletion-options label > span { font-weight: 700; }
+.deletion-options label span span { display: block; font-weight: 400; color: #536052; font-size: 14px; margin-top: 6px; }
+.button-danger { background: #9a2633; color: white; margin-top: 24px; }
+.button-danger:hover:not(:disabled) { background: #761c26; }
+.contact-form { margin-top: 32px; max-width: 720px; }
+.contact-form fieldset { border: 0; padding: 0; display: grid; gap: 20px; }
+.contact-form textarea { width: 100%; }
+.contact-trap { display: none; }
+.consent-panel { max-width: 850px; margin-block: 28px; }
+.consent-panel h2 { font-size: 26px; }
+.consent-panel p { margin: 16px 0; }
+.consent-documents { display: flex; gap: 20px; flex-wrap: wrap; margin: 24px 0; }
+.consent-panel .check-label { margin-block: 24px; align-items: flex-start; }
+@media (max-width: 600px) {
+  .legal-header, .legal-footer { padding: 22px 20px; }
+  .legal-main { padding: 36px 20px 50px; }
+  .legal-main h2 { font-size: 20px; }
+  .deletion-panel, .consent-panel { padding: 22px 18px; }
+  .deletion-options label { padding: 14px; }
+  .legal-main th, .legal-main td { padding: 10px; font-size: 13px; }
+}
