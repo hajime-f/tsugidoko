@@ -121,3 +121,40 @@ test('問い合わせは入力上限と非公開保存・有効期限・回数�
   }
   assert.equal((await contact(request('',body))).status,429);
 });
+
+test('認証の設定・接続障害は503とし、無効なセッションだけ401にする',async()=>{
+  const logs:unknown[][]=[];
+  const logging=mock.method(console,'error',(...args:unknown[])=>{logs.push(args);});
+  try {
+    for(const [code,expected] of [
+      ['auth/id-token-expired',401],['auth/id-token-revoked',401],['auth/invalid-argument',401],
+      ['auth/user-disabled',401],['auth/user-not-found',401],
+      ['auth/internal-error',503],['auth/invalid-credential',503],['auth/insufficient-permission',503],['app/network-error',503],
+    ] as const) {
+      const stub=mock.method(auth,'verifyIdToken',async()=>{throw Object.assign(new Error('private token and user details must not escape'),{code});});
+      try {
+        for(const response of [await consent(request('sensitive-token',{version:LEGAL_VERSION,accepted:true})),await status(request('sensitive-token')),await remove(request('sensitive-token',deletion()))]) {
+          assert.equal(response.status,expected,code);
+          const body=await response.text();assert.equal(body.includes('private token'),false);
+          assert.equal(body.includes('ログインし直して'),expected===401);
+        }
+      } finally {stub.mock.restore();}
+    }
+    assert.ok(logs.length>0);
+    assert.equal(JSON.stringify(logs).includes('private token'),false);
+    assert.equal(JSON.stringify(logs).includes('sensitive-token'),false);
+  } finally {logging.mock.restore();}
+});
+
+test('公開鍵の取得障害がSDKでinvalid-argumentに包まれても503にする',async()=>{
+  const logging=mock.method(console,'error',()=>{});
+  try {
+    for(const message of ['Error fetching public keys for Google certs: private response','Error while making request: private host. Error code: ENOTFOUND']) {
+      const stub=mock.method(auth,'verifyIdToken',async()=>{throw Object.assign(new Error(message),{code:'auth/invalid-argument'});});
+      try {
+        const response=await consent(request('sensitive-token',{version:LEGAL_VERSION,accepted:true}));
+        assert.equal(response.status,503);assert.equal((await response.text()).includes('private'),false);
+      } finally {stub.mock.restore();}
+    }
+  } finally {logging.mock.restore();}
+});

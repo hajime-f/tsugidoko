@@ -41,7 +41,13 @@ test('初回同意を保存し、削除だけは同意せずに利用できる',
   await expect(page.getByRole('button',{name:'同意して利用を始める'})).toBeDisabled();
   await page.getByRole('link',{name:'同意せずにデータの削除・退会へ進む'}).click();
   await expect(page.getByRole('heading',{name:'自分のデータを削除する'})).toBeVisible();
-  await page.goto('/home');await agree(page);await page.reload();
+  await page.goto('/home');
+  await page.route('**/api/legal-consent',route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'サーバーで認証を確認できませんでした。時間をおいてお試しください。'})}),{times:1});
+  await page.getByRole('checkbox',{name:'利用規約に同意し、プライバシーポリシーを確認しました'}).check();
+  await page.getByRole('button',{name:'同意して利用を始める'}).click();
+  await expect(page.locator('.consent-panel').getByRole('alert')).toContainText('サーバーで認証を確認できませんでした');
+  await expect(page).toHaveURL(/\/home$/);
+  await agree(page);await page.reload();
   await expect(page.getByRole('button',{name:'応募先を登録',exact:true})).toBeEnabled();
   await expect(page.getByRole('heading',{name:'ご利用前にご確認ください'})).toHaveCount(0);
 });

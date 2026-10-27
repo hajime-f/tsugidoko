@@ -570,3 +570,12 @@ Claude からは一括登録を必須とする提案があったが、相談の�
 - 本番JSに開発用Firebaseキーが混入していないこと、ブラウザのJSエラー0、GitHubの未解決secret-scanning alert0を確認。
 - 実ユーザーの記録や認証アカウントの削除は試験として実行していない。確認済みの本番URL: https://tsugidoko--tsugidoko-prod-hajime-f.asia-east1.hosted.app
 - 問い合わせの確認・返信と、中断した削除管理情報の点検は運営者が手動で行う。詳細はREADMEの運用手順を参照。
+
+## 同意保存時の「ログインし直してください」の修正（2026年10月27日）
+
+- 同意画面でエラーが出るスクリーンショットの報告。画像にURLはなく、開発環境で同じ原因を再現した。本番の直近24時間のlegal-consentログには、前回の未認証試験以外の401は見当たらなかった。
+- ローカルのgcloudユーザー資格情報を使うAdmin SDKで、Auth APIに必要なクォータプロジェクトが指定されていなかった。存在しない診断UIDのgetUserがauth/internal-errorになり、GOOGLE_CLOUD_QUOTA_PROJECTの指定で正常なauth/user-not-foundへ変わることを確認。利用者情報の取得・変更はしていない。
+- firebase.tsでlocalかつ未設定の場合だけクォータプロジェクトを補う。本番ADC・Emulator・既存指定は維持する。手動の環境変数追加なしで実際の開発認証が通ることを再確認済み。
+- 共通のverifyAuthTokenで、既知の無効・期限切れ・失効した認証だけ401、サーバー資格情報や接続障害は503とする。公開鍵取得障害をSDKがinvalid-argumentに包むケースも503へ分離。生のSDKメッセージ・トークン・UIDはログに出さず、形式を限定したコードだけを記録する。
+- 削除処理にも同じ分類を使うが、署名検証・失効検査は弱めない。完了確認専用経路だけ従来どおりcheckRevoked=false。
+- server17件、同意の503からの再試行を含むdesktop E2E4件、型チェックを確認。Claude Codeレビューに問題なし。公開鍵エラー文の判定はSDK版に依存するため、更新時も対応試験を維持する。

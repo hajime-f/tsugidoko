@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { FieldValue, Timestamp, type DocumentReference } from "firebase-admin/firestore";
-import { adminServices, HttpError } from "./firebase";
+import { adminServices, HttpError, verifyAuthToken } from "./firebase";
 
 export type DeletionMode = "data" | "account";
 const LEASE_MS = 90_000;
@@ -14,9 +14,7 @@ function isMissing(error: unknown) { return (error as {code?:string})?.code === 
 export async function deletionIdentity(request: Request) {
   const token = request.headers.get("authorization")?.match(/^Bearer (\S+)$/)?.[1];
   if (!token) throw new HttpError(401, "ログインし直してください。");
-  const { auth } = adminServices();
-  try { return { token, identity: await auth.verifyIdToken(token) }; }
-  catch { throw new HttpError(401, "ログインし直してください。"); }
+  return { token, identity: await verifyAuthToken(token, false) };
 }
 
 async function accountMissing(uid: string) {
@@ -68,8 +66,7 @@ export async function deleteAccountStep(request: Request, mode: DeletionMode) {
       return { done: true, mode };
     }
   }
-  try { await auth.verifyIdToken(token, true); }
-  catch { throw new HttpError(401, "ログインし直して削除を再開してください。"); }
+  await verifyAuthToken(token);
   const leaseId = randomUUID();
   const acquired = await db.runTransaction(async transaction => {
     const snap = await transaction.get(marker);

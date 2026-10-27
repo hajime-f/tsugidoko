@@ -21,6 +21,11 @@ export function adminServices() {
     throw new Error("Unexpected emulator configuration");
   }
   const local = !emulator && process.env.NODE_ENV === "development" && process.env.FIREBASE_USE_GCLOUD_CREDENTIALS === "1";
+  // User credentials need a quota project for Auth's revocation/user lookup API.
+  // Admin SDK reads this variable when adding the x-goog-user-project header.
+  if (local && !process.env.GOOGLE_CLOUD_QUOTA_PROJECT) {
+    process.env.GOOGLE_CLOUD_QUOTA_PROJECT = "tsugidoko-prod-hajime-f";
+  }
   const name = emulator ? "server-emulator" : "server";
   const app = getApps().find(app => app.name === name) ?? initializeApp(emulator ? { projectId: "demo-tsugidoko" } : { projectId: "tsugidoko-prod-hajime-f", credential: local ? {
       async getAccessToken() {
@@ -37,11 +42,32 @@ export function adminServices() {
 export class HttpError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
+const invalidSessionCodes = new Set([
+  "auth/argument-error", "auth/invalid-argument", "auth/invalid-id-token",
+  "auth/id-token-expired", "auth/id-token-revoked", "auth/user-disabled", "auth/user-not-found",
+  "auth/tenant-id-mismatch", "auth/mismatching-tenant-id",
+]);
+export async function verifyAuthToken(token: string, checkRevoked = true) {
+  try { return await adminServices().auth.verifyIdToken(token, checkRevoked); }
+  catch (error) {
+    const code = (error as { code?: unknown })?.code;
+    // Admin SDK also wraps certificate-fetch failures as auth/invalid-argument.
+    const message = error instanceof Error ? error.message : "";
+    const keyFetchFailed = code === "auth/invalid-argument" && /Error fetching public keys|Error while making request/i.test(message);
+    if (!keyFetchFailed && typeof code === "string" && invalidSessionCodes.has(code)) {
+      throw new HttpError(401, "ログインし直してください。");
+    }
+    // Never log tokens, user identifiers, credential contents, or raw SDK messages.
+    console.error("Firebase authentication verification failed", {
+      code: typeof code === "string" && /^(auth|app)\/[a-z-]+$/.test(code) ? code : "unknown",
+    });
+    throw new HttpError(503, "サーバーで認証を確認できませんでした。時間をおいてお試しください。");
+  }
+}
 export async function authenticated(request: Request) {
   const token = request.headers.get("authorization")?.match(/^Bearer (\S+)$/)?.[1];
   if (!token) throw new HttpError(401, "ログインし直してください。");
-  try { return await adminServices().auth.verifyIdToken(token, true); }
-  catch { throw new HttpError(401, "ログインし直してください。"); }
+  return verifyAuthToken(token);
 }
 export function failure(error: unknown) {
   return Response.json({ error: error instanceof HttpError ? error.message : "処理を完了できませんでした。時間をおいてお試しください。" }, { status: error instanceof HttpError ? error.status : 500 });

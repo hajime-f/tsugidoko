@@ -149,7 +149,7 @@ firebase deploy --only firestore:rules,firestore:indexes --project tsugidoko-pro
 
 ### 開発用サーバー認証
 
-本番のAdmin SDKはApp HostingのApplication Default Credentialsを使います。ローカルでは通常のADC、または開発モード限定の `FIREBASE_USE_GCLOUD_CREDENTIALS=1` と `GCLOUD_BIN` で、ログイン済みgcloudの短命アクセストークンを利用できます。現在の `.env.local` は後者で、秘密値は格納していません。このモードはオーナー権限でRulesを経由せず実プロジェクトに接続するため、他ユーザーの情報を対象に試験しないでください。自動テストは必ず `demo-tsugidoko` のエミュレーターを使います。リポジトリへ資格情報や `.env.local` を追加しないでください。
+本番のAdmin SDKはApp HostingのApplication Default Credentialsを使います。ローカルでは通常のADC、または開発モード限定の `FIREBASE_USE_GCLOUD_CREDENTIALS=1` と `GCLOUD_BIN` で、ログイン済みgcloudの短命アクセストークンを利用できます。現在の `.env.local` は後者で、秘密値は格納していません。このモードではFirebase Auth APIに必要な `GOOGLE_CLOUD_QUOTA_PROJECT` が未設定の場合、起動したプロセス内で `tsugidoko-prod-hajime-f` を補います。既存の指定、本番ADC、Emulatorには変更を加えません。このモードはオーナー権限でRulesを経由せず実プロジェクトに接続するため、他ユーザーの情報を対象に試験しないでください。自動テストは必ず `demo-tsugidoko` のエミュレーターを使います。リポジトリへ資格情報や `.env.local` を追加しないでください。
 
 ### サーバー・権限の検証
 
