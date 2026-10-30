@@ -54,11 +54,11 @@ test("Googleログイン、再読込、別タブ、ログアウトと再アク�
   // Reproduce activation without moving focus first (e.g. Safari mouse clicks).
   await page.evaluate(() => {
     (document.activeElement as HTMLElement)?.blur();
-    document.querySelector<HTMLButtonElement>(".member-sidebar nav button")!.click();
+    document.querySelector<HTMLButtonElement>(".member-account")!.click();
   });
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("button", { name: "アカウント", exact: true })).toBeFocused();
+  await expect(page.getByRole("button", { name: /さんのアカウントを開く/ })).toBeFocused();
   const other = await context.newPage();
   await other.goto(`${baseURL}/login`);
   await expect(other).toHaveURL(`${baseURL}/`);
@@ -159,7 +159,7 @@ for (const photo of ["available", "missing", "broken"] as const) {
     const photoURL = photo === "missing" ? "" : `${baseURL}/images/${photo === "available" ? "career-desk.jpg" : "missing-avatar.png"}`;
     await page.goto("/");
     await login(page, `avatar-${photo}-${info.project.name}-${Date.now()}@example.test`, "画像テスト", "Googleで登録", photoURL);
-    await page.getByRole("button", { name: "アカウント", exact: true }).click();
+    await page.getByRole("button", { name: /さんのアカウントを開く/ }).click();
     const dialog = page.getByRole("dialog");
     const avatar = dialog.locator(".member-avatar");
     if (photo === "available") {
@@ -173,6 +173,6 @@ for (const photo of ["available", "missing", "broken"] as const) {
     expect(await avatar.evaluate(el => el.getBoundingClientRect().width)).toBe(64);
     await page.screenshot({ path: info.outputPath(`account-${photo}.png`) });
     await page.keyboard.press("Escape");
-    await expect(page.getByRole("button", { name: "アカウント", exact: true })).toBeFocused();
+    await expect(page.getByRole("button", { name: /さんのアカウントを開く/ })).toBeFocused();
   });
 }
